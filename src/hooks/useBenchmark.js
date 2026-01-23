@@ -1,37 +1,36 @@
 import { useState, useCallback } from 'react';
 
-// Endpoints configuration
 const NETWORK_CONFIG = {
   ethereum: {
-    id: 1,
     Alchemy: { url: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
+    Infura: { url: `https://mainnet.infura.io/v3/${import.meta.env.VITE_INFURA_KEY}`, type: 'RPC' },
+    QuickNode: { url: `https://shiny-long-dew.quiknode.pro/${import.meta.env.VITE_QUICKNODE_KEY}/`, type: 'RPC' }, // Replace with your exact QN endpoint
     Covalent: { url: `https://api.covalenthq.com/v1/1/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
     Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Ethereum', type: 'REST' },
     Codex: { url: null, type: 'REST' }
   },
+  // Add Polygon/Arbitrum endpoints for Infura/QuickNode if you have them, 
+  // otherwise they will show as "Offline" on those networks.
   polygon: {
-    id: 137,
     Alchemy: { url: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
     Covalent: { url: `https://api.covalenthq.com/v1/137/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
     Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Polygon', type: 'REST' },
-    Codex: { url: null, type: 'REST' }
   },
   arbitrum: {
-    id: 42161,
     Alchemy: { url: `https://arb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
     Covalent: { url: `https://api.covalenthq.com/v1/42161/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
     Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Arbitrum', type: 'REST' },
-    Codex: { url: null, type: 'REST' }
   }
 };
 
 const pingProvider = async (config) => {
-  if (!config || !config.url || config.url.includes('undefined')) return { latency: 0, error: 'Config Missing' };
+  if (!config || !config.url || config.url.includes('undefined') || config.url.includes('your_')) {
+    return { latency: 0, error: 'Config Missing' };
+  }
   
   const start = performance.now();
   try {
     let response;
-    // We strictly use POST for RPCs to simulate real dApp traffic
     if (config.type === 'RPC') {
       response = await fetch(config.url, {
         method: 'POST',
@@ -65,12 +64,14 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
   const runBenchmark = useCallback(async () => {
     setIsRunning(true);
     
-    // "Robust" = 5 pings. "Standard" = 1 ping.
     const iterations = precisionMode === 'robust' ? 5 : 1;
     
     const updates = await Promise.all(benchmarkData.map(async (provider) => {
       const networkConfig = NETWORK_CONFIG[activeNetwork] || NETWORK_CONFIG.ethereum;
       const config = networkConfig[provider.name];
+
+      // If provider not supported on this chain, return N/A
+      if (!config) return { ...provider, latency: 0, lag: 'N/A', blockHeight: 0 };
 
       let totalLatency = 0;
       let successCount = 0;
@@ -88,7 +89,6 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
           lastError = result.error;
         }
         
-        // Small cooldown between pings to avoid "429 Too Many Requests"
         if (iterations > 1) await new Promise(r => setTimeout(r, 150));
       }
 
@@ -98,13 +98,13 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
       return { 
         ...provider, 
         latency: avgLatency, 
-        uptime: reliability, // THIS IS NOW REAL "SESSION UPTIME"
+        uptime: reliability, 
         blockHeight: lastBlockHeight, 
         lag: lastError && avgLatency === 0 ? lastError : 0 
       };
     }));
 
-    // Calculate Lag against the leader
+    // Calculate Lag against the leader (Highest Block)
     const validResults = updates.filter(u => u.blockHeight > 0);
     const maxHeight = validResults.length > 0 ? Math.max(...validResults.map(u => u.blockHeight)) : 0;
     

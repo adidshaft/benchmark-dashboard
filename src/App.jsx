@@ -1,31 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 import { 
-  Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Cpu, Info, 
-  Settings2, Signal, Hexagon 
+  Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
+  Settings2, Signal, Hexagon, DollarSign, Filter, Activity
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
-// Initial state - will be overwritten by live benchmark
+// --- INITIAL DATA ---
 const INITIAL_DATA = [
-  { name: 'Alchemy', latency: 0, uptime: 100, coverage: 8, color: '#3b82f6' },
-  { name: 'Covalent', latency: 0, uptime: 100, coverage: 100, color: '#f59e0b' },
-  { name: 'Mobula', latency: 0, uptime: 100, coverage: 45, color: '#8b5cf6' },
-  { name: 'Codex', latency: 0, uptime: 100, coverage: 30, color: '#10b981' }
+  { name: 'Alchemy', latency: 0, uptime: 100, cost: 25, coverage: 8, color: '#3b82f6' },
+  { name: 'Infura', latency: 0, uptime: 100, cost: 20, coverage: 12, color: '#ff5e57' },
+  { name: 'QuickNode', latency: 0, uptime: 100, cost: 35, coverage: 35, color: '#34e7e4' },
+  { name: 'Covalent', latency: 0, uptime: 100, cost: 15, coverage: 100, color: '#f59e0b' },
+  { name: 'Mobula', latency: 0, uptime: 100, cost: 10, coverage: 45, color: '#8b5cf6' },
+  { name: 'Codex', latency: 0, uptime: 100, cost: 5, coverage: 30, color: '#10b981' }
 ];
+
+// --- DEFINITIONS ---
+const METRIC_DEFINITIONS = {
+  speed: {
+    title: "Latency (Speed)",
+    calc: "Time to First Byte (TTFB). We measure the round-trip time for a standard 'eth_blockNumber' request.",
+    meaning: "Lower is better. High latency causes slow dApp UIs and missed trading opportunities."
+  },
+  cost: {
+    title: "Cost Efficiency",
+    calc: "Normalized cost per 1 Million Compute Units (CUs) or Requests based on standard enterprise pricing.",
+    meaning: "Lower is better. Critical for high-volume applications scaling to millions of users."
+  },
+  scale: {
+    title: "Chain Coverage",
+    calc: "Total number of unique blockchains indexed and supported by the provider.",
+    meaning: "Higher is better. Essential for multi-chain wallets and aggregators."
+  },
+  reliability: {
+    title: "Session Reliability",
+    calc: "Success Rate = (Successful Pings / Total Attempts) * 100.",
+    meaning: "Higher is better. Measures stability. If a provider times out, this score drops."
+  }
+};
 
 // --- COMPONENTS ---
 const Tooltip = ({ content, children }) => (
   <div className="group relative flex items-center justify-center">
     {children}
-    <div className="absolute bottom-full mb-3 px-3 py-2 bg-slate-950/95 backdrop-blur-md border border-slate-700 text-xs text-slate-200 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 text-center shadow-xl z-50 transform translate-y-2 group-hover:translate-y-0">
+    <div className="absolute bottom-full mb-3 px-4 py-3 bg-slate-950/95 backdrop-blur-md border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl z-50 transform translate-y-2 group-hover:translate-y-0">
       {content}
       <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-700"></div>
     </div>
   </div>
 );
+
+const MetricExplanation = ({ type }) => {
+  const def = METRIC_DEFINITIONS[type];
+  if (!def) return null;
+  return (
+    <div>
+      <div className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+        {def.title}
+      </div>
+      <p className="text-xs text-slate-300 mb-2 leading-relaxed">{def.calc}</p>
+      <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+        {def.meaning}
+      </div>
+    </div>
+  );
+};
 
 const GlassCard = ({ children, className = "" }) => (
   <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>
@@ -48,7 +90,16 @@ const Badge = ({ children, color = "indigo" }) => {
 };
 
 const BenchmarkChart = ({ data, activeMetric }) => {
-  const getMetricKey = () => activeMetric === 'speed' ? 'latency' : 'uptime';
+  const getMetricKey = () => {
+    switch(activeMetric) {
+      case 'speed': return 'latency';
+      case 'cost': return 'cost';
+      case 'scale': return 'coverage';
+      default: return 'uptime';
+    }
+  };
+
+  const metricKey = getMetricKey();
 
   return (
     <div className="w-full mt-4 h-[350px] min-h-[350px]">
@@ -63,13 +114,14 @@ const BenchmarkChart = ({ data, activeMetric }) => {
              ))}
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" horizontal={false} />
-          <XAxis type="number" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+          {/* FIX: 'type="number"' combined with 'domain={['auto', 'auto']}' ensures the scale adapts dynamically */}
+          <XAxis type="number" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={[0, 'auto']} hide />
           <YAxis dataKey="name" type="category" stroke="#e2e8f0" width={90} fontSize={13} fontWeight={600} tickLine={false} axisLine={false} />
           <RechartsTooltip 
             cursor={{ fill: '#ffffff', opacity: 0.03 }}
             contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px', color: '#f8fafc' }}
           />
-          <Bar dataKey={getMetricKey()} radius={[0, 6, 6, 0]} barSize={36} animationDuration={1200}>
+          <Bar dataKey={metricKey} radius={[0, 6, 6, 0]} barSize={36} animationDuration={800}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={`url(#grad${index})`} stroke={entry.color} strokeWidth={1} strokeOpacity={0.5} />
             ))}
@@ -84,18 +136,29 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('speed');
   const [network, setNetwork] = useState('ethereum'); 
   const [precision, setPrecision] = useState('standard'); 
-  
+  const [visibleProviders, setVisibleProviders] = useState(INITIAL_DATA.map(d => d.name));
+
   const { benchmarkData, isRunning, runBenchmark } = useBenchmark(INITIAL_DATA, network, precision);
 
+  const filteredData = useMemo(() => {
+    return benchmarkData.filter(d => visibleProviders.includes(d.name));
+  }, [benchmarkData, visibleProviders]);
+
   const getWinner = () => {
-    const activeProviders = benchmarkData.filter(p => p.latency > 0 && p.latency !== 999);
-    if (activeProviders.length === 0) return { name: 'Ready', latency: 0 };
-    if (activeTab === 'speed') return activeProviders.reduce((prev, curr) => prev.latency < curr.latency ? prev : curr);
-    // For Reliability, higher uptime is better
-    return activeProviders.reduce((prev, curr) => prev.uptime > curr.uptime ? prev : curr);
+    const active = filteredData.filter(p => p.latency > 0 && p.latency !== 999);
+    if (active.length === 0) return { name: 'Ready', latency: 0 };
+    if (activeTab === 'speed') return active.reduce((prev, curr) => prev.latency < curr.latency ? prev : curr);
+    if (activeTab === 'cost') return active.reduce((prev, curr) => prev.cost < curr.cost ? prev : curr);
+    return active[0];
   };
 
   const winner = getWinner();
+
+  const toggleProvider = (name) => {
+    setVisibleProviders(prev => 
+      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-indigo-500/30 overflow-x-hidden relative">
@@ -119,12 +182,9 @@ export default function App() {
               <span className="text-[10px] uppercase tracking-[0.2em] text-indigo-400/80 font-semibold">Intelligence Platform</span>
             </div>
           </div>
-
-          <div className="flex items-center gap-6">
-             <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-500 border border-white/5 px-3 py-1.5 rounded-full bg-white/[0.02]">
+          <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-500 border border-white/5 px-3 py-1.5 rounded-full bg-white/[0.02]">
                 <div className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
                 {isRunning ? 'Benchmarking...' : 'System Operational'}
-             </div>
           </div>
         </div>
       </nav>
@@ -136,8 +196,9 @@ export default function App() {
            {/* LEFT: CONTROLS */}
            <div className="lg:col-span-1 space-y-4">
               <GlassCard className="p-5 space-y-6 border-t-4 border-t-indigo-500/50">
+                  {/* NETWORK */}
                   <div>
-                    <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 block flex items-center gap-2">
+                    <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2">
                        <Globe className="w-3 h-3" /> Target Network
                     </label>
                     <div className="flex flex-col gap-1">
@@ -160,15 +221,40 @@ export default function App() {
 
                   <div className="h-px bg-white/5"></div>
 
+                  {/* COMPETITOR FILTER */}
                   <div>
-                    <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 block flex items-center gap-2">
+                    <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2">
+                       <Filter className="w-3 h-3" /> Competitors
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {INITIAL_DATA.map((p) => (
+                            <button 
+                                key={p.name}
+                                onClick={() => toggleProvider(p.name)}
+                                className={`text-[10px] px-2 py-1 rounded border transition-all ${
+                                    visibleProviders.includes(p.name) 
+                                    ? 'bg-slate-700 border-slate-600 text-white' 
+                                    : 'border-slate-800 text-slate-600 opacity-50'
+                                }`}
+                            >
+                                {p.name}
+                            </button>
+                        ))}
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-white/5"></div>
+
+                  {/* PRECISION */}
+                  <div>
+                    <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2">
                        <Settings2 className="w-3 h-3" /> Precision Mode
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => setPrecision('standard')} className={`text-xs py-2 rounded border ${precision === 'standard' ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-800 text-slate-500'}`}>
                            Fast (1x)
                         </button>
-                        <Tooltip content="Pings 5x and checks failure rate. Takes 3-5 seconds.">
+                        <Tooltip content={<div className="p-2 text-xs">Pings 5x for average. Robust but slower.</div>}>
                             <button onClick={() => setPrecision('robust')} className={`w-full text-xs py-2 rounded border ${precision === 'robust' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'border-slate-800 text-slate-500'}`}>
                                Robust (5x)
                             </button>
@@ -199,12 +285,12 @@ export default function App() {
                  <div className="absolute inset-0 bg-indigo-500/5"></div>
                  <div className="relative z-10">
                     <p className="text-slate-400 text-sm mb-1 font-medium">
-                        {activeTab === 'speed' ? `Fastest Provider (${network})` : `Most Reliable (${network})`}
+                        {activeTab === 'speed' ? 'Fastest' : activeTab === 'cost' ? 'Cheapest' : 'Best'} Provider ({network})
                     </p>
                     <h2 className="text-3xl font-bold text-white flex items-center gap-3">
                        {winner.name}
                        {winner.latency > 0 && <span className="text-lg font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                           {activeTab === 'speed' ? `${winner.latency}ms` : `${winner.uptime}% Success`}
+                           {activeTab === 'speed' ? `${winner.latency}ms` : activeTab === 'cost' ? `$${winner.cost}` : `${winner.uptime}%`}
                        </span>}
                     </h2>
                  </div>
@@ -215,13 +301,15 @@ export default function App() {
 
               {/* MAIN CHART */}
               <GlassCard className="flex-1 min-h-[400px]">
-                 <div className="flex items-center justify-between mb-4">
+                 <div className="flex items-center justify-between mb-4 overflow-x-auto">
                     <div className="flex gap-2">
                         {[
-                          { id: 'speed', label: 'Latency', icon: Zap, desc: 'Average RTT (Round Trip Time) over the benchmark session.' },
-                          { id: 'reliability', label: 'Reliability', icon: CheckCircle2, desc: 'Session Success Rate. How many requests succeeded out of total attempts.' },
+                          { id: 'speed', label: 'Latency', icon: Zap },
+                          { id: 'cost', label: 'Cost ($)', icon: DollarSign },
+                          { id: 'scale', label: 'Coverage', icon: Globe },
+                          { id: 'reliability', label: 'Reliability', icon: CheckCircle2 },
                         ].map((tab) => (
-                          <Tooltip key={tab.id} content={tab.desc}>
+                          <Tooltip key={tab.id} content={<MetricExplanation type={tab.id} />}>
                               <button
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
@@ -237,7 +325,7 @@ export default function App() {
                         ))}
                     </div>
                  </div>
-                 <BenchmarkChart data={benchmarkData} activeMetric={activeTab} />
+                 <BenchmarkChart data={filteredData} activeMetric={activeTab} />
               </GlassCard>
            </div>
         </div>
@@ -254,20 +342,21 @@ export default function App() {
                     <thead>
                       <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
                         <th className="px-6 py-4">Provider</th>
-                        <th className="px-6 py-4">Avg Latency</th>
+                        <th className="px-6 py-4">Latency</th>
                         <th className="px-6 py-4">
                             <div className="flex items-center gap-1">
                                 Block Lag
-                                <Tooltip content="Difference between provider's block height and the highest reported block.">
+                                <Tooltip content={<div className="p-2 text-xs">Difference between provider's block height and the highest reported block.</div>}>
                                     <Info className="w-3 h-3 cursor-help text-slate-600" />
                                 </Tooltip>
                             </div>
                         </th>
-                        <th className="px-6 py-4 text-right">Session Reliability</th>
+                        <th className="px-6 py-4">Cost / 1M</th>
+                        <th className="px-6 py-4 text-right">Health</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {benchmarkData.map((provider) => (
+                      {filteredData.map((provider) => (
                         <tr key={provider.name} className="hover:bg-white/5 transition-colors">
                           <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>
@@ -287,14 +376,12 @@ export default function App() {
                               : <Badge color="amber">-{provider.lag} Blocks</Badge>
                              }
                           </td>
+                          <td className="px-6 py-4 text-slate-400 font-mono text-xs">
+                             ${provider.cost}
+                          </td>
                           <td className="px-6 py-4 text-right">
                              <div className="flex justify-end items-center gap-2">
-                                <div className="w-24 bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                    <div 
-                                        className={`h-full ${provider.uptime === 100 ? 'bg-emerald-500' : provider.uptime > 50 ? 'bg-amber-500' : 'bg-red-500'}`} 
-                                        style={{ width: `${provider.uptime}%` }}
-                                    ></div>
-                                </div>
+                                <Activity className={`w-4 h-4 ${provider.uptime === 100 ? 'text-emerald-500' : 'text-red-500'}`} />
                                 <span className="text-xs font-mono text-slate-400">{provider.uptime}%</span>
                              </div>
                           </td>
