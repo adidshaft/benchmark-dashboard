@@ -1,13 +1,11 @@
 import { useState, useCallback } from 'react';
 
-// Configuration for multiple chains
-// We map "Network ID" to specific endpoints
 const NETWORK_CONFIG = {
   ethereum: {
     Alchemy: { url: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
     Covalent: { url: `https://api.covalenthq.com/v1/1/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
     Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Ethereum', type: 'REST' },
-    Codex: { url: null, type: 'REST' } // Add your Codex Eth endpoint
+    Codex: { url: null, type: 'REST' }
   },
   polygon: {
     Alchemy: { url: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
@@ -23,52 +21,82 @@ const NETWORK_CONFIG = {
   }
 };
 
-export const useBenchmark = (initialData, activeNetwork) => {
+const pingProvider = async (config) => {
+  if (!config || !config.url || config.url.includes('undefined')) return { latency: 0, error: 'Config Missing' };
+  
+  const start = performance.now();
+  try {
+    let response;
+    if (config.type === 'RPC') {
+      response = await fetch(config.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] })
+      });
+    } else {
+      response = await fetch(config.url);
+    }
+    
+    if (!response.ok) return { latency: 0, error: `Status ${response.status}` };
+    
+    const json = await response.json();
+    const end = performance.now();
+    
+    let blockHeight = 0;
+    // Extract block height based on provider format
+    if (json.result) blockHeight = parseInt(json.result, 16); // RPC standard
+    else if (json.data?.items?.[0]?.height) blockHeight = json.data.items[0].height; // Covalent
+    
+    return { latency: Math.round(end - start), blockHeight, error: null };
+  } catch (e) {
+    return { latency: 0, error: 'Network Error' };
+  }
+};
+
+export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
   const [benchmarkData, setData] = useState(initialData);
   const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const runBenchmark = useCallback(async () => {
     setIsRunning(true);
+    setProgress(0);
+    
+    // Determine iterations: 1 for Standard, 3 for Robust
+    const iterations = precisionMode === 'robust' ? 3 : 1;
     
     const updates = await Promise.all(benchmarkData.map(async (provider) => {
-      // 1. Get config for the SELECTED network
       const networkConfig = NETWORK_CONFIG[activeNetwork] || NETWORK_CONFIG.ethereum;
       const config = networkConfig[provider.name];
-      
-      if (!config || !config.url || config.url.includes('undefined')) {
-        return { ...provider, latency: 0, lag: 'Config Missing', blockHeight: 0 };
-      }
 
-      const start = performance.now();
-      try {
-        let response;
-        if (config.type === 'RPC') {
-          response = await fetch(config.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] })
-          });
+      let totalLatency = 0;
+      let successfulPings = 0;
+      let lastBlockHeight = 0;
+      let lastError = null;
+
+      // Loop for precision averaging
+      for (let i = 0; i < iterations; i++) {
+        const result = await pingProvider(config);
+        if (!result.error) {
+          totalLatency += result.latency;
+          lastBlockHeight = result.blockHeight;
+          successfulPings++;
         } else {
-          response = await fetch(config.url);
+          lastError = result.error;
         }
-
-        if (response.status === 401 || response.status === 403) {
-            return { ...provider, latency: 0, lag: 'Auth Failed', blockHeight: 0 };
-        }
-        
-        const json = await response.json();
-        const end = performance.now();
-        const latency = Math.round(end - start);
-
-        let blockHeight = 0;
-        if (provider.name === 'Alchemy') blockHeight = parseInt(json.result, 16); 
-        else if (provider.name === 'Covalent') blockHeight = json.data?.items?.[0]?.height || 0;
-
-        return { ...provider, latency, blockHeight, lag: 0 };
-
-      } catch (e) {
-        return { ...provider, latency: 0, lag: 'Offline', blockHeight: 0 }; 
+        // Small delay between pings to prevent rate limiting
+        if (iterations > 1) await new Promise(r => setTimeout(r, 200));
       }
+
+      // Calculate Average
+      const avgLatency = successfulPings > 0 ? Math.round(totalLatency / successfulPings) : 0;
+      
+      return { 
+        ...provider, 
+        latency: avgLatency, 
+        blockHeight: lastBlockHeight, 
+        lag: lastError && avgLatency === 0 ? lastError : 0 
+      };
     }));
 
     // Calculate Lag
@@ -82,7 +110,8 @@ export const useBenchmark = (initialData, activeNetwork) => {
 
     setData(finalData);
     setIsRunning(false);
-  }, [benchmarkData, activeNetwork]); // Re-create function when network changes
+    setProgress(100);
+  }, [benchmarkData, activeNetwork, precisionMode]);
 
-  return { benchmarkData, isRunning, runBenchmark };
+  return { benchmarkData, isRunning, runBenchmark, progress };
 };
