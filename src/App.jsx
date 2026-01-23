@@ -10,49 +10,54 @@ import { useBenchmark } from './hooks/useBenchmark';
 
 // --- INITIAL DATA ---
 const INITIAL_DATA = [
-  { name: 'Alchemy', latency: 0, uptime: 100, cost: 25, coverage: 8, color: '#3b82f6' },
-  { name: 'Infura', latency: 0, uptime: 100, cost: 20, coverage: 12, color: '#ff5e57' },
-  { name: 'QuickNode', latency: 0, uptime: 100, cost: 35, coverage: 35, color: '#34e7e4' },
-  { name: 'Covalent', latency: 0, uptime: 100, cost: 15, coverage: 100, color: '#f59e0b' },
-  { name: 'Mobula', latency: 0, uptime: 100, cost: 10, coverage: 45, color: '#8b5cf6' },
-  { name: 'Codex', latency: 0, uptime: 100, cost: 5, coverage: 30, color: '#10b981' }
+  { name: 'Alchemy', latency: 0, uptime: 100, cost: 25, coverage: 8, color: '#3b82f6', history: [0,0] },
+  { name: 'Infura', latency: 0, uptime: 100, cost: 20, coverage: 12, color: '#ff5e57', history: [0,0] },
+  { name: 'QuickNode', latency: 0, uptime: 100, cost: 35, coverage: 35, color: '#34e7e4', history: [0,0] },
+  { name: 'Covalent', latency: 0, uptime: 100, cost: 15, coverage: 100, color: '#f59e0b', history: [0,0] },
+  { name: 'Mobula', latency: 0, uptime: 100, cost: 10, coverage: 45, color: '#8b5cf6', history: [0,0] },
+  { name: 'Codex', latency: 0, uptime: 100, cost: 5, coverage: 30, color: '#10b981', history: [0,0] }
 ];
 
-// --- DEFINITIONS ---
+// --- DEFINITIONS FOR TOOLTIPS ---
 const METRIC_DEFINITIONS = {
   speed: {
     title: "Latency (Speed)",
-    calc: "Time to First Byte (TTFB). We measure the round-trip time for a standard 'eth_blockNumber' request.",
-    meaning: "Lower is better. High latency causes slow dApp UIs and missed trading opportunities."
+    calc: "Time to First Byte (TTFB). We measure the round-trip time for a standard request.",
+    meaning: "Lower is better. High latency causes laggy UIs."
   },
   cost: {
     title: "Cost Efficiency",
-    calc: "Normalized cost per 1 Million Compute Units (CUs) or Requests based on standard enterprise pricing.",
-    meaning: "Lower is better. Critical for high-volume applications scaling to millions of users."
+    calc: "Estimated cost per 1 Million Requests based on standard enterprise pricing.",
+    meaning: "Lower is better. Vital for scaling apps."
   },
   scale: {
     title: "Chain Coverage",
-    calc: "Total number of unique blockchains indexed and supported by the provider.",
-    meaning: "Higher is better. Essential for multi-chain wallets and aggregators."
+    calc: "Number of unique blockchains supported by this provider.",
+    meaning: "Higher is better. Essential for multi-chain apps."
   },
   reliability: {
     title: "Session Reliability",
-    calc: "Success Rate = (Successful Pings / Total Attempts) * 100.",
-    meaning: "Higher is better. Measures stability. If a provider times out, this score drops."
+    calc: "Percentage of successful pings during this session.",
+    meaning: "Higher is better. <99% indicates instability."
   }
 };
 
 // --- COMPONENTS ---
+
+// 1. Tooltip Wrapper (FIXED: Made opaque for readability)
 const Tooltip = ({ content, children }) => (
-  <div className="group relative flex items-center justify-center">
+  <div className="group relative flex items-center justify-center z-[100]">
     {children}
-    <div className="absolute bottom-full mb-3 px-4 py-3 bg-slate-950/95 backdrop-blur-md border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl z-50 transform translate-y-2 group-hover:translate-y-0">
+    {/* CHANGED: bg-slate-800 -> bg-slate-800/80 and added backdrop-blur-sm for readability */}
+    <div className="absolute bottom-full mb-3 px-4 py-3 bg-slate-800/80 backdrop-blur-sm border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[110]">
       {content}
-      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-700"></div>
+      {/* Arrow: Also updated to match opacity */}
+      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800/80"></div>
     </div>
   </div>
 );
 
+// 2. Metric Definition Card
 const MetricExplanation = ({ type }) => {
   const def = METRIC_DEFINITIONS[type];
   if (!def) return null;
@@ -61,10 +66,41 @@ const MetricExplanation = ({ type }) => {
       <div className="text-sm font-bold text-white mb-1 flex items-center gap-2">
         {def.title}
       </div>
-      <p className="text-xs text-slate-300 mb-2 leading-relaxed">{def.calc}</p>
-      <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20">
+      <p className="text-xs text-slate-300 mb-2 leading-relaxed opacity-80">{def.calc}</p>
+      <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20 inline-block">
         {def.meaning}
       </div>
+    </div>
+  );
+};
+
+// 3. Sparkline
+const Sparkline = ({ data, color }) => {
+  if (!data || data.length < 2) return <div className="h-8 w-24 bg-white/5 rounded animate-pulse"></div>;
+  
+  const height = 32;
+  const width = 100;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data.filter(d => d > 0)); 
+  
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const normalizedY = val === 0 ? height : height - ((val - min) / ((max - min) || 1)) * (height - 5); 
+    return `${x},${normalizedY}`;
+  }).join(' ');
+
+  return (
+    <div className="h-8 w-24 opacity-80">
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        <polyline
+          points={points}
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 };
@@ -114,7 +150,6 @@ const BenchmarkChart = ({ data, activeMetric }) => {
              ))}
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" horizontal={false} />
-          {/* FIX: 'type="number"' combined with 'domain={['auto', 'auto']}' ensures the scale adapts dynamically */}
           <XAxis type="number" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={[0, 'auto']} hide />
           <YAxis dataKey="name" type="category" stroke="#e2e8f0" width={90} fontSize={13} fontWeight={600} tickLine={false} axisLine={false} />
           <RechartsTooltip 
@@ -301,8 +336,8 @@ export default function App() {
 
               {/* MAIN CHART */}
               <GlassCard className="flex-1 min-h-[400px]">
-                 <div className="flex items-center justify-between mb-4 overflow-x-auto">
-                    <div className="flex gap-2">
+                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         {[
                           { id: 'speed', label: 'Latency', icon: Zap },
                           { id: 'cost', label: 'Cost ($)', icon: DollarSign },
@@ -343,6 +378,7 @@ export default function App() {
                       <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
                         <th className="px-6 py-4">Provider</th>
                         <th className="px-6 py-4">Latency</th>
+                        <th className="px-6 py-4">Stability Trend</th>
                         <th className="px-6 py-4">
                             <div className="flex items-center gap-1">
                                 Block Lag
@@ -368,6 +404,9 @@ export default function App() {
                             ) : (
                                 <span className="text-slate-600">-</span>
                             )}
+                          </td>
+                          <td className="px-6 py-4">
+                              <Sparkline data={provider.history} color={provider.color} />
                           </td>
                           <td className="px-6 py-4">
                              {provider.lag === 0 ? <Badge color="emerald">Synced</Badge> 
