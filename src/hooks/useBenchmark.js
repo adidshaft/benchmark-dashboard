@@ -1,8 +1,5 @@
 import { useState, useCallback } from 'react';
 
-// ... (Keep your existing NETWORK_CONFIG and pingProvider function exactly as they are) ...
-// Just ensure NETWORK_CONFIG and pingProvider are defined above this hook.
-
 const NETWORK_CONFIG = {
   ethereum: {
     Alchemy: { url: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
@@ -24,11 +21,17 @@ const NETWORK_CONFIG = {
   }
 };
 
-const pingProvider = async (config) => {
+const pingProvider = async (config, requestType) => {
     if (!config || !config.url || config.url.includes('undefined') || config.url.includes('your_')) {
       return { latency: 0, error: 'Config Missing' };
     }
     
+    // DEFINE PAYLOADS
+    const payloads = {
+        light: { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] },
+        heavy: { jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["latest", true] } // True = full transactions
+    };
+
     const start = performance.now();
     try {
       let response;
@@ -36,9 +39,11 @@ const pingProvider = async (config) => {
         response = await fetch(config.url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] })
+          body: JSON.stringify(payloads[requestType] || payloads.light)
         });
       } else {
+        // For REST (Covalent/Mobula), 'heavy' might mean fetching a different endpoint, 
+        // but for now we keep it standard to avoid API errors.
         response = await fetch(config.url);
       }
       
@@ -48,7 +53,11 @@ const pingProvider = async (config) => {
       const end = performance.now();
       
       let blockHeight = 0;
-      if (json.result) blockHeight = parseInt(json.result, 16); 
+      if (json.result) {
+         // Handle both hex (RPC) and object (Heavy RPC) responses
+         if (typeof json.result === 'object' && json.result.number) blockHeight = parseInt(json.result.number, 16);
+         else if (typeof json.result === 'string') blockHeight = parseInt(json.result, 16);
+      } 
       else if (json.data?.items?.[0]?.height) blockHeight = json.data.items[0].height;
       
       return { latency: Math.round(end - start), blockHeight, error: null };
@@ -57,8 +66,8 @@ const pingProvider = async (config) => {
     }
 };
 
-export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
-  const [benchmarkData, setData] = useState(initialData.map(d => ({ ...d, history: [] }))); // Add history array
+export const useBenchmark = (initialData, activeNetwork, precisionMode, requestType) => {
+  const [benchmarkData, setData] = useState(initialData.map(d => ({ ...d, history: [] })));
   const [isRunning, setIsRunning] = useState(false);
 
   const runBenchmark = useCallback(async () => {
@@ -66,7 +75,6 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
     
     const iterations = precisionMode === 'robust' ? 5 : 1;
     
-    // We process providers sequentially or effectively parallel but update state at the end
     const updates = await Promise.all(benchmarkData.map(async (provider) => {
       const networkConfig = NETWORK_CONFIG[activeNetwork] || NETWORK_CONFIG.ethereum;
       const config = networkConfig[provider.name];
@@ -80,26 +88,23 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
       let newHistoryPoints = [];
 
       for (let i = 0; i < iterations; i++) {
-        const result = await pingProvider(config);
+        const result = await pingProvider(config, requestType);
         
-        // Store point for sparkline (limit to last 20 points across multiple runs if we wanted)
         if (!result.error) {
             newHistoryPoints.push(result.latency);
             totalLatency += result.latency;
             lastBlockHeight = result.blockHeight;
             successCount++;
         } else {
-            newHistoryPoints.push(0); // 0 indicates error/timeout in sparkline
+            newHistoryPoints.push(0);
             lastError = result.error;
         }
         
-        if (iterations > 1) await new Promise(r => setTimeout(r, 150));
+        if (iterations > 1) await new Promise(r => setTimeout(r, 200));
       }
 
       const avgLatency = successCount > 0 ? Math.round(totalLatency / successCount) : 0;
       const reliability = Math.round((successCount / iterations) * 100);
-
-      // Append new history to existing history, keep last 15
       const updatedHistory = [...(provider.history || []), ...newHistoryPoints].slice(-15);
 
       return { 
@@ -122,7 +127,7 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode) => {
 
     setData(finalData);
     setIsRunning(false);
-  }, [benchmarkData, activeNetwork, precisionMode]);
+  }, [benchmarkData, activeNetwork, precisionMode, requestType]);
 
   return { benchmarkData, isRunning, runBenchmark };
 };
