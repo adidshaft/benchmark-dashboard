@@ -8,11 +8,12 @@ import {
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
+// Initial state - will be overwritten by live benchmark
 const INITIAL_DATA = [
-  { name: 'Alchemy', latency: 0, uptime: 99.99, coverage: 8, consistency: 99.9, color: '#3b82f6' },
-  { name: 'Covalent', latency: 0, uptime: 99.95, coverage: 100, consistency: 98.5, color: '#f59e0b' },
-  { name: 'Mobula', latency: 0, uptime: 99.50, coverage: 45, consistency: 99.2, color: '#8b5cf6' },
-  { name: 'Codex', latency: 0, uptime: 99.90, coverage: 30, consistency: 99.8, color: '#10b981' }
+  { name: 'Alchemy', latency: 0, uptime: 100, coverage: 8, color: '#3b82f6' },
+  { name: 'Covalent', latency: 0, uptime: 100, coverage: 100, color: '#f59e0b' },
+  { name: 'Mobula', latency: 0, uptime: 100, coverage: 45, color: '#8b5cf6' },
+  { name: 'Codex', latency: 0, uptime: 100, coverage: 30, color: '#10b981' }
 ];
 
 // --- COMPONENTS ---
@@ -47,13 +48,12 @@ const Badge = ({ children, color = "indigo" }) => {
 };
 
 const BenchmarkChart = ({ data, activeMetric }) => {
-  const getMetricKey = () => activeMetric === 'speed' ? 'latency' : activeMetric === 'scale' ? 'coverage' : 'uptime';
+  const getMetricKey = () => activeMetric === 'speed' ? 'latency' : 'uptime';
 
   return (
     <div className="w-full mt-4 h-[350px] min-h-[350px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
-          {/* FIX: Use standard lowercase SVG tags, not Recharts imports */}
           <defs>
              {data.map((entry, index) => (
                 <linearGradient key={index} id={`grad${index}`} x1="0" y1="0" x2="1" y2="0">
@@ -83,7 +83,7 @@ const BenchmarkChart = ({ data, activeMetric }) => {
 export default function App() {
   const [activeTab, setActiveTab] = useState('speed');
   const [network, setNetwork] = useState('ethereum'); 
-  const [precision, setPrecision] = useState('standard'); // 'standard' | 'robust'
+  const [precision, setPrecision] = useState('standard'); 
   
   const { benchmarkData, isRunning, runBenchmark } = useBenchmark(INITIAL_DATA, network, precision);
 
@@ -91,7 +91,8 @@ export default function App() {
     const activeProviders = benchmarkData.filter(p => p.latency > 0 && p.latency !== 999);
     if (activeProviders.length === 0) return { name: 'Ready', latency: 0 };
     if (activeTab === 'speed') return activeProviders.reduce((prev, curr) => prev.latency < curr.latency ? prev : curr);
-    return activeProviders[0];
+    // For Reliability, higher uptime is better
+    return activeProviders.reduce((prev, curr) => prev.uptime > curr.uptime ? prev : curr);
   };
 
   const winner = getWinner();
@@ -167,9 +168,9 @@ export default function App() {
                         <button onClick={() => setPrecision('standard')} className={`text-xs py-2 rounded border ${precision === 'standard' ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-800 text-slate-500'}`}>
                            Fast (1x)
                         </button>
-                        <Tooltip content="Pings 3x and averages results for higher accuracy. Slower but robust.">
+                        <Tooltip content="Pings 5x and checks failure rate. Takes 3-5 seconds.">
                             <button onClick={() => setPrecision('robust')} className={`w-full text-xs py-2 rounded border ${precision === 'robust' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'border-slate-800 text-slate-500'}`}>
-                               Robust (3x)
+                               Robust (5x)
                             </button>
                         </Tooltip>
                     </div>
@@ -197,10 +198,14 @@ export default function App() {
               <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 to-slate-900 border border-white/10 p-6 flex items-center justify-between">
                  <div className="absolute inset-0 bg-indigo-500/5"></div>
                  <div className="relative z-10">
-                    <p className="text-slate-400 text-sm mb-1 font-medium">Fastest Provider ({network})</p>
+                    <p className="text-slate-400 text-sm mb-1 font-medium">
+                        {activeTab === 'speed' ? `Fastest Provider (${network})` : `Most Reliable (${network})`}
+                    </p>
                     <h2 className="text-3xl font-bold text-white flex items-center gap-3">
                        {winner.name}
-                       {winner.latency > 0 && <span className="text-lg font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">{winner.latency}ms</span>}
+                       {winner.latency > 0 && <span className="text-lg font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                           {activeTab === 'speed' ? `${winner.latency}ms` : `${winner.uptime}% Success`}
+                       </span>}
                     </h2>
                  </div>
                  <div className="relative z-10 hidden sm:block">
@@ -213,22 +218,22 @@ export default function App() {
                  <div className="flex items-center justify-between mb-4">
                     <div className="flex gap-2">
                         {[
-                          { id: 'speed', label: 'Latency', icon: Zap },
-                          { id: 'scale', label: 'Coverage', icon: Globe },
-                          { id: 'reliability', label: 'Uptime', icon: CheckCircle2 },
+                          { id: 'speed', label: 'Latency', icon: Zap, desc: 'Average RTT (Round Trip Time) over the benchmark session.' },
+                          { id: 'reliability', label: 'Reliability', icon: CheckCircle2, desc: 'Session Success Rate. How many requests succeeded out of total attempts.' },
                         ].map((tab) => (
-                          <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                              activeTab === tab.id 
-                                ? 'bg-white/10 border-white/20 text-white' 
-                                : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
-                            }`}
-                          >
-                            <tab.icon className="w-3 h-3" />
-                            {tab.label}
-                          </button>
+                          <Tooltip key={tab.id} content={tab.desc}>
+                              <button
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                                  activeTab === tab.id 
+                                    ? 'bg-white/10 border-white/20 text-white' 
+                                    : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                                }`}
+                              >
+                                <tab.icon className="w-3 h-3" />
+                                {tab.label}
+                              </button>
+                          </Tooltip>
                         ))}
                     </div>
                  </div>
@@ -249,16 +254,16 @@ export default function App() {
                     <thead>
                       <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
                         <th className="px-6 py-4">Provider</th>
-                        <th className="px-6 py-4">Response Time</th>
+                        <th className="px-6 py-4">Avg Latency</th>
                         <th className="px-6 py-4">
                             <div className="flex items-center gap-1">
-                                Block Status
-                                <Tooltip content="The difference between the provider's reported block height and the chain tip.">
+                                Block Lag
+                                <Tooltip content="Difference between provider's block height and the highest reported block.">
                                     <Info className="w-3 h-3 cursor-help text-slate-600" />
                                 </Tooltip>
                             </div>
                         </th>
-                        <th className="px-6 py-4 text-right">Health Check</th>
+                        <th className="px-6 py-4 text-right">Session Reliability</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -269,7 +274,7 @@ export default function App() {
                             {provider.name}
                           </td>
                           <td className="px-6 py-4 text-slate-300 font-mono">
-                            {provider.latency > 0 && provider.latency !== 999 ? (
+                            {provider.latency > 0 ? (
                                 <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span>
                             ) : (
                                 <span className="text-slate-600">-</span>
@@ -283,18 +288,14 @@ export default function App() {
                              }
                           </td>
                           <td className="px-6 py-4 text-right">
-                             <div className="flex justify-end">
-                                {provider.latency > 0 && provider.latency < 999 ? (
-                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                        <span className="text-[10px] font-bold text-emerald-500 uppercase">Online</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                                        <span className="text-[10px] font-bold text-red-500 uppercase">Error</span>
-                                    </div>
-                                )}
+                             <div className="flex justify-end items-center gap-2">
+                                <div className="w-24 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                    <div 
+                                        className={`h-full ${provider.uptime === 100 ? 'bg-emerald-500' : provider.uptime > 50 ? 'bg-amber-500' : 'bg-red-500'}`} 
+                                        style={{ width: `${provider.uptime}%` }}
+                                    ></div>
+                                </div>
+                                <span className="text-xs font-mono text-slate-400">{provider.uptime}%</span>
                              </div>
                           </td>
                         </tr>
