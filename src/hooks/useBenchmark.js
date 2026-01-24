@@ -54,156 +54,160 @@ const NETWORK_CONFIG = {
   }
 };
 
-const performRequest = async (config, payload) => {
+// Generic Fetch Wrapper
+const performRequest = async (config, payload, method = 'POST') => {
     try {
-        let response;
-        if (config.type === 'RPC') {
-            response = await fetch(config.url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-        } else {
-            const headers = config.authHeader ? { 'Authorization': import.meta.env.VITE_MOBULA_KEY } : {};
-            response = await fetch(config.url, { method: 'GET', headers });
-        }
-        if (!response.ok) return { error: `HTTP ${response.status}` };
-        return await response.json();
+        const isRPC = config.type === 'RPC';
+        const headers = config.authHeader ? { 'Authorization': import.meta.env.VITE_MOBULA_KEY } : {};
+        if (isRPC) headers['Content-Type'] = 'application/json';
+
+        const options = { method, headers };
+        if (isRPC && method === 'POST') options.body = JSON.stringify(payload);
+
+        const response = await fetch(config.url, options);
+        
+        // Return response object to inspect headers
+        return { 
+            ok: response.ok, 
+            status: response.status, 
+            headers: response.headers,
+            json: await response.json().catch(() => ({})) 
+        };
     } catch (e) {
-        return { error: 'Timeout/Network' };
+        return { error: 'Network/Timeout' };
     }
 };
 
+// 1. LATENCY & DATA CHECK
 const pingProvider = async (config, requestType) => {
     if (!config || !config.url) return { latency: 0, error: 'Config Missing' };
     
-    // 1. LATENCY CHECK
     const start = performance.now();
     const payload = requestType === 'heavy' 
         ? { jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["latest", true] }
         : { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] };
 
-    const json = await performRequest(config, payload);
+    const res = await performRequest(config, payload, config.type === 'RPC' ? 'POST' : 'GET');
     const end = performance.now();
-    const latency = Math.round(end - start);
     
-    if (json.error) return { latency: 0, error: json.error };
+    if (res.error || !res.ok) return { latency: 0, error: res.error || `HTTP ${res.status}` };
 
-    // PARSE BLOCK
+    // Parse Block
     let blockHeight = 0;
-    if (json.result) {
-        if (typeof json.result === 'object' && json.result.number) blockHeight = parseInt(json.result.number, 16);
-        else if (typeof json.result === 'string') blockHeight = parseInt(json.result, 16);
-    } else if (json.data?.items?.[0]?.height) {
-        blockHeight = json.data.items[0].height;
+    if (res.json.result) {
+        blockHeight = typeof res.json.result === 'object' 
+            ? parseInt(res.json.result.number, 16) 
+            : parseInt(res.json.result, 16);
+    } else if (res.json.data?.items?.[0]?.height) {
+        blockHeight = res.json.data.items[0].height;
     }
 
-    // 2. REAL-TIME ARCHIVE CHECK (Try fetching Block #1)
-    let isArchive = null;
-    if (config.type === 'RPC') {
-        const archivePayload = { jsonrpc: "2.0", id: 2, method: "eth_getBalance", params: ["0x0000000000000000000000000000000000000000", "0x1"] }; // Block 1
-        const archiveJson = await performRequest(config, archivePayload);
-        // If we get a result, it supports archive. If error (missing trie node), it doesn't.
-        isArchive = archiveJson.result ? true : false;
+    return { latency: Math.round(end - start), blockHeight, error: null, raw: res.json, headers: res.headers };
+};
+
+// 2. SECURITY CHECK (New)
+const checkSecurity = (config, headers) => {
+    let score = 100;
+    let issues = [];
+
+    // Check 1: HTTPS Enforcement
+    if (!config.url.startsWith('https')) {
+        score -= 50;
+        issues.push("Insecure HTTP detected (Major Risk)");
     }
 
-    // 3. REAL-TIME GAS CHECK (For Consistency)
-    let gasPrice = 0;
-    if (config.type === 'RPC') {
-        const gasPayload = { jsonrpc: "2.0", id: 3, method: "eth_gasPrice", params: [] };
-        const gasJson = await performRequest(config, gasPayload);
-        if (gasJson.result) gasPrice = parseInt(gasJson.result, 16) / 1e9; // Convert to Gwei
+    // Check 2: Header Leaks (Server / X-Powered-By)
+    // Note: Browser CORS often hides these, but if they show up, it's a definite leak.
+    if (headers) {
+        if (headers.get('x-powered-by')) {
+            score -= 10;
+            issues.push(`Leaked 'X-Powered-By': ${headers.get('x-powered-by')}`);
+        }
+        if (headers.get('server')) {
+            score -= 10;
+            issues.push(`Leaked 'Server' version: ${headers.get('server')}`);
+        }
     }
 
-    return { latency, blockHeight, isArchive, gasPrice, error: null };
+    return { score, issues };
 };
 
 export const useBenchmark = (initialData, activeNetwork, precisionMode, requestType) => {
   const [benchmarkData, setData] = useState(initialData.map(d => ({ ...d, history: [] })));
   const [isRunning, setIsRunning] = useState(false);
-  const [logs, setLogs] = useState([]); // NEW: Execution Logs
+  const [logs, setLogs] = useState([]); 
 
-  const addLog = (msg) => setLogs(prev => [...prev.slice(-4), `[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`]);
+  const addLog = (msg) => setLogs(prev => [...prev.slice(-10), `[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`]);
 
   const runBenchmark = useCallback(async () => {
     setIsRunning(true);
-    setLogs([]); // Clear logs
-    addLog(`Initializing benchmark for ${activeNetwork}...`);
+    setLogs([]); 
+    addLog(`Initializing Security & Perf Benchmark for ${activeNetwork}...`);
     
     const iterations = precisionMode === 'robust' ? 5 : 2;
     const networkConfig = NETWORK_CONFIG[activeNetwork] || NETWORK_CONFIG.ethereum;
-    
-    // Create a copy to update incrementally
     let currentData = [...benchmarkData];
 
-    // Process providers sequentially to update logs nicely (or use Promise.all for speed, but logs are fun)
     const updates = await Promise.all(currentData.map(async (provider) => {
       const config = networkConfig[provider.name];
 
       if (!config || !config.url) {
-          addLog(`Skipping ${provider.name} (Not supported on ${activeNetwork})`);
-          return { ...provider, latency: 0, p99: 0, uptime: 0, lag: 'N/A', blockHeight: 0, archive: false, gas: 0 };
+          return { ...provider, latency: 0, p99: 0, uptime: 0, lag: 'N/A', blockHeight: 0, archive: false, gas: 0, securityScore: 0, securityIssues: [] };
       }
 
-      addLog(`Probing ${provider.name} (${iterations}x)...`);
+      addLog(`Auditing ${provider.name}...`);
 
       let latencies = [];
       let successCount = 0;
       let lastBlockHeight = 0;
-      let detectedArchive = false;
-      let lastGas = 0;
-      let lastError = null;
+      let lastHeaders = null;
+      let lastRawResponse = null;
 
       for (let i = 0; i < iterations; i++) {
         const result = await pingProvider(config, requestType);
-        
         if (!result.error) {
             latencies.push(result.latency);
             if (result.blockHeight > 0) lastBlockHeight = result.blockHeight;
-            if (result.isArchive === true) detectedArchive = true;
-            if (result.gasPrice > 0) lastGas = result.gasPrice;
+            lastHeaders = result.headers;
+            lastRawResponse = result.raw;
             successCount++;
         } else {
             latencies.push(0);
-            lastError = result.error;
         }
         await new Promise(r => setTimeout(r, 100));
       }
 
-      // Stats Calculation
+      // Calc Performance
       const validLatencies = latencies.filter(l => l > 0).sort((a, b) => a - b);
       const p50 = validLatencies.length > 0 ? validLatencies[Math.floor(validLatencies.length / 2)] : 0;
       const p99 = validLatencies.length > 0 ? validLatencies[validLatencies.length - 1] : 0;
       const reliability = Math.round((successCount / iterations) * 100);
       const updatedHistory = [...(provider.history || []), ...latencies].slice(-20);
 
-      // Override static "archive" with real detected value if RPC
-      const finalArchive = config.type === 'RPC' ? detectedArchive : provider.archive;
+      // Calc Security
+      const { score: secScore, issues: secIssues } = checkSecurity(config, lastHeaders);
 
       return { 
         ...provider, 
-        latency: p50, 
-        p99: p99, 
-        uptime: reliability, 
-        blockHeight: lastBlockHeight, 
-        lag: lastError && p50 === 0 ? lastError : 0,
+        latency: p50, p99, uptime: reliability, blockHeight: lastBlockHeight, 
+        lag: p50 === 0 ? 'Error' : 0,
         history: updatedHistory,
-        archive: finalArchive, // Real-time value
-        gas: lastGas // Real-time value
+        securityScore: secScore,
+        securityIssues: secIssues,
+        lastResponse: lastRawResponse
       };
     }));
 
-    // Post-Processing for Lag & Logs
+    // Post-Process Lag
     const validResults = updates.filter(u => u.blockHeight > 0);
     const maxHeight = validResults.length > 0 ? Math.max(...validResults.map(u => u.blockHeight)) : 0;
-    
     const finalData = updates.map(u => ({
       ...u,
-      lag: (u.blockHeight > 0 && maxHeight > 0) ? (maxHeight - u.blockHeight) : (u.uptime > 0 ? 'Synced' : (u.lag || 'N/A'))
+      lag: (u.blockHeight > 0 && maxHeight > 0) ? (maxHeight - u.blockHeight) : (u.uptime > 0 ? 'Synced' : 'N/A')
     }));
 
     setData(finalData);
-    addLog(`Benchmark Complete. Highest Block: ${maxHeight}`);
+    addLog(`Audit Complete. Max Block: ${maxHeight}`);
     setIsRunning(false);
   }, [benchmarkData, activeNetwork, precisionMode, requestType]);
 

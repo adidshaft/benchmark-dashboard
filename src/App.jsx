@@ -5,7 +5,7 @@ import {
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
@@ -14,32 +14,32 @@ const INITIAL_DATA = [
   { 
     name: 'Alchemy', 
     latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0],
-    freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0
+    freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], securityScore: 100, securityIssues: []
   },
   { 
     name: 'Infura', 
     latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0],
-    freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0
+    freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], securityScore: 100, securityIssues: []
   },
   { 
     name: 'QuickNode', 
     latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0,0],
-    freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], gas: 0
+    freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], securityScore: 100, securityIssues: []
   },
   { 
     name: 'Covalent', 
     latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0,0],
-    freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], gas: 0
+    freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], securityScore: 100, securityIssues: []
   },
   { 
     name: 'Mobula', 
     latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0,0],
-    freeTier: 'Freemium', archive: false, trace: false, certs: [], gas: 0
+    freeTier: 'Freemium', archive: false, trace: false, certs: [], securityScore: 100, securityIssues: []
   },
   { 
     name: 'Codex', 
     latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0,0],
-    freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0
+    freeTier: 'Free', archive: false, trace: false, certs: [], securityScore: 100, securityIssues: []
   }
 ];
 
@@ -54,27 +54,22 @@ const SUPPORTED_CHAINS = [
 ];
 
 const DEFINITIONS_DATA = [
-  { param: "P50 Latency (Global)", unit: "Milliseconds (ms)", source: "eth_blockNumber response time averaged across 5 regions (US, EU, APAC).", relevance: "Critical for general UX responsiveness; determines how 'snappy' a dApp feels." },
-  { param: "P99 Latency (Stress)", unit: "Milliseconds (ms)", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates if the provider will choke during NFT mints or market volatility." },
+  { param: "P50 Latency (Global)", unit: "ms", source: "eth_blockNumber response median time.", relevance: "Critical for general UX responsiveness; determines how 'snappy' a dApp feels." },
+  { param: "P99 Latency (Stress)", unit: "ms", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
   { param: "Chain Support Count", unit: "Integer", source: "Count of Mainnet/Testnet networks listed in documentation.", relevance: "Filters providers for multi-chain projects vs. single-chain specialists." },
   { param: "Archive Access", unit: "Boolean / Badge", source: "Does the free/base tier support eth_getBalance for blocks >128 ago?", relevance: "Essential for tax tools, wallets, and analytics platforms." },
-  { param: "Free Tier Cap", unit: "Requests/Month (Normalized)", source: "Convert proprietary units (CUs/Credits) to standard eth_call equivalent.", relevance: "The 'hook' for startups; determines how long they can build for free." },
-  { param: "Paid Entry Price", unit: "USD / Month", source: "Cost of the cheapest paid plan.", relevance: "Important for projects graduating from the hackathon phase." },
-  { param: "Historical Uptime", unit: "Percentage (%)", source: "30-day rolling average from status pages.", relevance: "The baseline requirement for any production-grade application." },
+  { param: "Free Tier Cap", unit: "Requests/Mo", source: "Normalized standard eth_call equivalent.", relevance: "The 'hook' for startups; determines how long they can build for free." },
+  { param: "Paid Entry Price", unit: "USD/Mo", source: "Cost of the cheapest paid plan.", relevance: "Important for projects graduating from the hackathon phase." },
+  { param: "Historical Uptime", unit: "%", source: "Session success rate (Real-time approximation).", relevance: "The baseline requirement for any production-grade application." },
   { param: "Security Certs", unit: "Badges", source: "SOC 2 Type II, ISO 27001, HIPAA, GDPR.", relevance: "Mandatory filter for enterprise/institutional clients." },
   { param: "Trace/Debug API", unit: "Boolean", source: "Support for trace_transaction or debug_traceTransaction.", relevance: "Critical for developers debugging smart contracts; often a paid add-on." },
-  { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling (e.g., Alchemy Supernode).", relevance: "Prevents UI bugs where a user's balance flickers between blocks." },
+  { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling.", relevance: "Prevents UI bugs where a user's balance flickers between blocks." },
 ];
 
 const TRANSPARENCY_DATA = [
-    { metric: "Latency (P50 & P99)", type: "Real-Time", reason: "Measured live from your browser session to the provider endpoint." },
-    { metric: "Gas Consistency", type: "Real-Time", reason: "We fetch live gas prices from each provider. Outliers indicate lag." },
-    { metric: "Archive Support", type: "Real-Time", reason: "We attempt a live fetch of the Genesis Block (#1). Success = Supported." },
-    { metric: "Block Lag", type: "Real-Time", reason: "Calculated by comparing provider's block height vs. the highest in the group." },
-    { metric: "Est. Monthly Cost", type: "Calculated", reason: "Formula: (User Slider Volume × Static Base Price from Pricing Page)." },
-    { metric: "Chain Coverage", type: "Static", reason: "Cannot be auto-discovered via RPC. Manually updated from documentation." },
-    { metric: "Security Certs", type: "Static", reason: "Requires checking specific compliance pages/audits." },
-    { metric: "Trace Capabilities", type: "Static", reason: "Many providers protect trace endpoints behind auth/paywalls, preventing public tests." },
+    { metric: "Latency & Lag", type: "Real-Time", reason: "Measured live from your session." },
+    { metric: "Security/Header Leaks", type: "Real-Time", reason: "We analyze response headers for 'Server' or 'X-Powered-By' leakage." },
+    { metric: "Chain Coverage", type: "Static", reason: "Hardcoded from documentation." },
 ];
 
 const METRIC_DEFINITIONS = {
@@ -85,8 +80,6 @@ const METRIC_DEFINITIONS = {
   reliability: { title: "Session Uptime", calc: "% of successful pings.", meaning: "Higher is better." }
 };
 
-// --- COMPONENTS ---
-
 const DefinitionsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
@@ -96,38 +89,16 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900/50">
            <div className="flex items-center gap-4">
               <div className="p-2 bg-indigo-500/10 rounded-lg"><BookOpen className="w-6 h-6 text-indigo-400" /></div>
-              <div>
-                  <h2 className="text-xl font-bold text-white">Benchmark Methodology</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Transparent Breakdown of Metrics & Data Sources</p>
-              </div>
+              <div><h2 className="text-xl font-bold text-white">Benchmark Methodology</h2><p className="text-xs text-slate-400 mt-0.5">Transparent Breakdown of Metrics & Data Sources</p></div>
            </div>
            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
         </div>
         <div className="overflow-y-auto p-8 space-y-10">
-           {/* Section 1: Transparency Matrix */}
-           <div>
-               <h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4 flex items-center gap-2">
-                   <Eye className="w-4 h-4" /> Data Source Transparency
-               </h3>
-               <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
-                   <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Metric</th><th className="px-6 py-4 font-semibold">Data Type</th><th className="px-6 py-4 font-semibold">Reason / Source</th></tr></thead>
-                      <tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : r.type === "Calculated" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody>
-                   </table>
-               </div>
+           <div><h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4 flex items-center gap-2"><Eye className="w-4 h-4" /> Data Source Transparency</h3>
+               <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg"><table className="w-full text-left border-collapse"><thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Metric</th><th className="px-6 py-4 font-semibold">Data Type</th><th className="px-6 py-4 font-semibold">Reason / Source</th></tr></thead><tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody></table></div>
            </div>
-           
-           {/* Section 2: Definitions */}
-           <div>
-               <h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4 flex items-center gap-2">
-                   <Info className="w-4 h-4" /> Recommended Parameters (From Whitepaper)
-               </h3>
-               <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
-                   <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Parameter</th><th className="px-6 py-4 font-semibold">Unit</th><th className="px-6 py-4 font-semibold">Data Source / Methodology</th><th className="px-6 py-4 font-semibold">Relevance to User</th></tr></thead>
-                      <tbody className="divide-y divide-slate-800 bg-slate-950/50">{DEFINITIONS_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-indigo-300 font-bold text-sm whitespace-nowrap">{r.param}</td><td className="px-6 py-4 text-slate-400 text-xs font-mono">{r.unit}</td><td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{r.source}</td><td className="px-6 py-4 text-slate-400 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/30">{r.relevance}</td></tr>)}</tbody>
-                   </table>
-               </div>
+           <div><h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4 flex items-center gap-2"><Info className="w-4 h-4" /> Recommended Parameters</h3>
+               <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg"><table className="w-full text-left border-collapse"><thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Parameter</th><th className="px-6 py-4 font-semibold">Unit</th><th className="px-6 py-4 font-semibold">Methodology</th><th className="px-6 py-4 font-semibold">Relevance</th></tr></thead><tbody className="divide-y divide-slate-800 bg-slate-950/50">{DEFINITIONS_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-indigo-300 font-bold text-sm whitespace-nowrap">{r.param}</td><td className="px-6 py-4 text-slate-400 text-xs font-mono">{r.unit}</td><td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{r.source}</td><td className="px-6 py-4 text-slate-400 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/30">{r.relevance}</td></tr>)}</tbody></table></div>
            </div>
         </div>
       </div>
@@ -135,16 +106,11 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
   );
 };
 
-// 1. FIXED TOOLTIP: 100% Solid, High Z-Index, Positioned BELOW Element
 const Tooltip = ({ content, children }) => (
   <div className="group relative flex items-center justify-center z-[50]">
     {children}
-    {/* top-full positions it below. mt-3 gives spacing. */}
     <div className="absolute top-full mt-3 px-4 py-3 bg-[#020617] border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[9999]">
-      {content}
-      {/* Arrow points UP (bottom-full relative to tooltip puts it at top) */}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-[1px] border-4 border-transparent border-b-slate-700"></div>
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-[#020617]"></div>
+      {content}<div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-[1px] border-4 border-transparent border-b-slate-700"></div><div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-[#020617]"></div>
     </div>
   </div>
 );
@@ -152,13 +118,7 @@ const Tooltip = ({ content, children }) => (
 const MetricExplanation = ({ type }) => {
   const def = METRIC_DEFINITIONS[type];
   if (!def) return null;
-  return (
-    <div>
-      <div className="text-sm font-bold text-white mb-1">{def.title}</div>
-      <p className="text-xs text-slate-300 mb-2 opacity-90 leading-relaxed">{def.calc}</p>
-      <div className="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20 inline-block">{def.meaning}</div>
-    </div>
-  );
+  return <div><div className="text-sm font-bold text-white mb-1">{def.title}</div><p className="text-xs text-slate-300 mb-2 opacity-90 leading-relaxed">{def.calc}</p><div className="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20 inline-block">{def.meaning}</div></div>;
 };
 
 const Sparkline = ({ data, color }) => {
@@ -166,26 +126,16 @@ const Sparkline = ({ data, color }) => {
   const height = 32; const width = 100;
   const points = data.map((val, i) => {
     const x = (i / (data.length - 1)) * width;
-    const max = Math.max(...data, 1);
-    const min = Math.min(...data.filter(d => d > 0));
+    const max = Math.max(...data, 1); const min = Math.min(...data.filter(d => d > 0));
     const normalizedY = val === 0 ? height : height - ((val - min) / ((max - min) || 1)) * (height - 5); 
     return `${x},${normalizedY}`;
   }).join(' ');
-  return (
-    <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
-  );
+  return <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></div>;
 };
 
-const GlassCard = ({ children, className = "" }) => (
-  <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>
-);
+const GlassCard = ({ children, className = "" }) => <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>;
+const Badge = ({ children, color = "indigo" }) => <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border bg-${color}-500/10 text-${color}-400 border-${color}-500/20`}>{children}</span>;
 
-const Badge = ({ children, color = "indigo" }) => {
-  const colors = { indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20", emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", red: "bg-red-500/10 text-red-400 border-red-500/20", amber: "bg-amber-500/10 text-amber-400 border-amber-500/20", slate: "bg-slate-700/50 text-slate-300 border-slate-600" };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border ${colors[color] || colors.indigo}`}>{children}</span>;
-};
-
-// --- APP ---
 export default function App() {
   const [activeTab, setActiveTab] = useState('score');
   const [network, setNetwork] = useState('ethereum'); 
@@ -194,11 +144,11 @@ export default function App() {
   const [requestVolume, setRequestVolume] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' });
   const [searchQuery, setSearchQuery] = useState('');
-  
   const [visibleProviders, setVisibleProviders] = useState(INITIAL_DATA.map(d => d.name));
   const [tableFilters, setTableFilters] = useState({ archive: false, trace: false, certs: false });
   const [isDefinitionsOpen, setDefinitionsOpen] = useState(false);
   const [isLogExpanded, setLogExpanded] = useState(false);
+  const [inspectorData, setInspectorData] = useState(null);
 
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
 
@@ -220,7 +170,6 @@ export default function App() {
     if (tableFilters.archive) data = data.filter(d => d.archive);
     if (tableFilters.trace) data = data.filter(d => d.trace);
     if (tableFilters.certs) data = data.filter(d => d.certs.length > 0);
-
     if (sortConfig.key) {
       data.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -250,6 +199,45 @@ export default function App() {
       </div>
 
       <DefinitionsModal isOpen={isDefinitionsOpen} onClose={() => setDefinitionsOpen(false)} />
+
+      {/* INSPECTOR MODAL */}
+      {inspectorData && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-slate-700 w-full max-w-2xl max-h-[80vh] rounded-2xl flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+               <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: inspectorData.color }}></div>
+                  <h2 className="text-lg font-bold text-white">{inspectorData.name} <span className="text-slate-500 font-normal text-sm">Inspector</span></h2>
+               </div>
+               <button onClick={() => setInspectorData(null)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 overflow-auto font-mono text-xs">
+               <div className="grid grid-cols-2 gap-4 mb-6">
+                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                       <div className="text-slate-500 uppercase tracking-wider font-bold mb-1">Latency</div>
+                       <div className="text-2xl text-white">{inspectorData.latency}ms</div>
+                   </div>
+                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                       <div className="text-slate-500 uppercase tracking-wider font-bold mb-1">Security Score</div>
+                       <div className={`text-2xl ${inspectorData.securityScore === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{inspectorData.securityScore}/100</div>
+                   </div>
+               </div>
+               <div className="space-y-4">
+                   {inspectorData.securityIssues.length > 0 && (
+                       <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
+                           <div className="text-red-400 font-bold mb-2 flex items-center gap-2"><ShieldAlert className="w-4 h-4"/> Security Warnings</div>
+                           <ul className="list-disc list-inside text-red-300/80 space-y-1">{inspectorData.securityIssues.map((issue, i) => <li key={i}>{issue}</li>)}</ul>
+                       </div>
+                   )}
+                   <div>
+                       <div className="text-indigo-400 font-bold mb-2 uppercase tracking-wider">Raw Response (Last Ping)</div>
+                       <div className="bg-black/50 p-4 rounded-lg border border-slate-800 text-slate-400 whitespace-pre-wrap break-all">{inspectorData.lastResponse ? JSON.stringify(inspectorData.lastResponse, null, 2) : "// Run benchmark to see raw data"}</div>
+                   </div>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLogExpanded && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
@@ -309,8 +297,6 @@ export default function App() {
 
                   <div className="h-px bg-white/5"></div>
                   <button onClick={runBenchmark} disabled={isRunning} className={`w-full py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${isRunning ? 'bg-slate-800 text-slate-500' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'}`}>{isRunning ? <RotateCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}{isRunning ? 'Running Analysis...' : 'Start Benchmark'}</button>
-                  
-                  {/* LIVE TERMINAL */}
                   <div className="bg-black/50 rounded-lg p-3 font-mono text-[10px] text-slate-400 h-32 flex flex-col border border-slate-800 shadow-inner">
                       <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800"><div className="flex items-center gap-2 text-indigo-400"><Terminal className="w-3 h-3" /> Logs</div><button onClick={() => setLogExpanded(true)} className="hover:text-white transition-colors"><Maximize2 className="w-3 h-3" /></button></div>
                       <div className="overflow-y-auto flex-1 space-y-1">{logs.length === 0 && <span className="opacity-50">Ready...</span>}{logs.map((log, i) => <div key={i}>{log}</div>)}</div>
@@ -376,12 +362,13 @@ export default function App() {
                           <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('lag')}>Lag <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
                           <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('coverage')}>Chains <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
                           <th className="px-6 py-4">Capabilities</th>
+                          <th className="px-6 py-4">Security</th>
                           <th className="px-6 py-4 text-right cursor-pointer hover:text-white" onClick={() => handleSort('freeTier')}>Free Tier <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {sortedAndFilteredData.map((provider) => (
-                        <tr key={provider.name} className="hover:bg-white/5 transition-colors">
+                        <tr key={provider.name} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setInspectorData(provider)}>
                           <td className="px-6 py-4 font-medium text-white flex items-center gap-3"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>{provider.name}</td>
                           <td className="px-6 py-4 text-slate-300 font-mono">{provider.latency > 0 ? <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span> : <span className="text-slate-600">-</span>}</td>
                           <td className="px-6 py-4"><Sparkline data={provider.history} color={provider.color} /></td>
@@ -389,6 +376,17 @@ export default function App() {
                           <td className="px-6 py-4">{provider.lag === 0 ? <Badge color="emerald">Synced</Badge> : provider.lag === 'N/A' ? <span className="text-xs text-slate-600">N/A</span> : <Badge color="amber">-{provider.lag} Blocks</Badge>}</td>
                           <td className="px-6 py-4 text-slate-400 text-xs">{provider.coverage} Nets</td>
                           <td className="px-6 py-4"><div className="flex gap-1.5">{provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Support</div>}><Database className="w-4 h-4 text-indigo-400" /></Tooltip>}{provider.trace && <Tooltip content={<div className="p-2 text-xs">Trace/Debug API Support</div>}><FileCode className="w-4 h-4 text-emerald-400" /></Tooltip>}{provider.certs.length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {provider.certs.join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-amber-400" /></Tooltip>}</div></td>
+                          
+                          {/* SECURITY COLUMN */}
+                          <td className="px-6 py-4">
+                              <Tooltip content={<div className="p-2 text-xs whitespace-nowrap">{provider.securityIssues.length > 0 ? `${provider.securityIssues.length} Issues Found` : "All Checks Passed"}</div>}>
+                                  {provider.securityScore === 100 
+                                    ? <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                    : <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse" />
+                                  }
+                              </Tooltip>
+                          </td>
+
                           <td className="px-6 py-4 text-right text-xs text-slate-400">{provider.freeTier}</td>
                         </tr>
                       ))}
