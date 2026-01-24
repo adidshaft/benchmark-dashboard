@@ -1,15 +1,15 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
 } from 'recharts';
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
-// --- INITIAL DATA (Archive is now detected live, defaults false) ---
+// --- INITIAL DATA ---
 const INITIAL_DATA = [
   { 
     name: 'Alchemy', 
@@ -54,17 +54,27 @@ const SUPPORTED_CHAINS = [
 ];
 
 const DEFINITIONS_DATA = [
-  { param: "Gas Accuracy", unit: "Gwei", source: "Real-time eth_gasPrice check.", relevance: "Data consistency check." },
-  { param: "Archive Check", unit: "Boolean", source: "Live fetch of Genesis Block (#1).", relevance: "Verifies deep history access." },
-  { param: "P50 Latency", unit: "ms", source: "Median ping from client.", relevance: "General responsiveness." },
-  { param: "P99 Stress", unit: "ms", source: "Worst case during load.", relevance: "Critical for congestion." },
+  { param: "P50 Latency (Global)", unit: "Milliseconds (ms)", source: "eth_blockNumber response time averaged across 5 regions (US, EU, APAC).", relevance: "Critical for general UX responsiveness; determines how 'snappy' a dApp feels." },
+  { param: "P99 Latency (Stress)", unit: "Milliseconds (ms)", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates if the provider will choke during NFT mints or market volatility." },
+  { param: "Chain Support Count", unit: "Integer", source: "Count of Mainnet/Testnet networks listed in documentation.", relevance: "Filters providers for multi-chain projects vs. single-chain specialists." },
+  { param: "Archive Access", unit: "Boolean / Badge", source: "Does the free/base tier support eth_getBalance for blocks >128 ago?", relevance: "Essential for tax tools, wallets, and analytics platforms." },
+  { param: "Free Tier Cap", unit: "Requests/Month (Normalized)", source: "Convert proprietary units (CUs/Credits) to standard eth_call equivalent.", relevance: "The 'hook' for startups; determines how long they can build for free." },
+  { param: "Paid Entry Price", unit: "USD / Month", source: "Cost of the cheapest paid plan.", relevance: "Important for projects graduating from the hackathon phase." },
+  { param: "Historical Uptime", unit: "Percentage (%)", source: "30-day rolling average from status pages.", relevance: "The baseline requirement for any production-grade application." },
+  { param: "Security Certs", unit: "Badges", source: "SOC 2 Type II, ISO 27001, HIPAA, GDPR.", relevance: "Mandatory filter for enterprise/institutional clients." },
+  { param: "Trace/Debug API", unit: "Boolean", source: "Support for trace_transaction or debug_traceTransaction.", relevance: "Critical for developers debugging smart contracts; often a paid add-on." },
+  { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling (e.g., Alchemy Supernode).", relevance: "Prevents UI bugs where a user's balance flickers between blocks." },
 ];
 
 const TRANSPARENCY_DATA = [
-    { metric: "Archive Support", type: "Real-Time", reason: "We now try to fetch Block #1 live to verify archive capabilities." },
-    { metric: "Gas Consistency", type: "Real-Time", reason: "We fetch live gas prices. Outliers indicate data propagation lag." },
-    { metric: "Latency/Lag", type: "Real-Time", reason: "Measured live from your session." },
-    { metric: "Capabilities (Trace)", type: "Static", reason: "Hardcoded due to API auth restrictions on public endpoints." },
+    { metric: "Latency (P50 & P99)", type: "Real-Time", reason: "Measured live from your browser session to the provider endpoint." },
+    { metric: "Gas Consistency", type: "Real-Time", reason: "We fetch live gas prices from each provider. Outliers indicate lag." },
+    { metric: "Archive Support", type: "Real-Time", reason: "We attempt a live fetch of the Genesis Block (#1). Success = Supported." },
+    { metric: "Block Lag", type: "Real-Time", reason: "Calculated by comparing provider's block height vs. the highest in the group." },
+    { metric: "Est. Monthly Cost", type: "Calculated", reason: "Formula: (User Slider Volume × Static Base Price from Pricing Page)." },
+    { metric: "Chain Coverage", type: "Static", reason: "Cannot be auto-discovered via RPC. Manually updated from documentation." },
+    { metric: "Security Certs", type: "Static", reason: "Requires checking specific compliance pages/audits." },
+    { metric: "Trace Capabilities", type: "Static", reason: "Many providers protect trace endpoints behind auth/paywalls, preventing public tests." },
 ];
 
 const METRIC_DEFINITIONS = {
@@ -80,24 +90,43 @@ const METRIC_DEFINITIONS = {
 const DefinitionsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="relative bg-[#0f172a] border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/50">
-           <div className="flex items-center gap-3"><BookOpen className="w-5 h-5 text-indigo-400" /><h2 className="text-lg font-bold text-white">Methodology & Data Sources</h2></div>
-           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={onClose}></div>
+      <div className="relative bg-[#020617] border border-slate-700 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900/50">
+           <div className="flex items-center gap-4">
+              <div className="p-2 bg-indigo-500/10 rounded-lg"><BookOpen className="w-6 h-6 text-indigo-400" /></div>
+              <div>
+                  <h2 className="text-xl font-bold text-white">Benchmark Methodology</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Transparent Breakdown of Metrics & Data Sources</p>
+              </div>
+           </div>
+           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
         </div>
-        <div className="overflow-y-auto p-6 space-y-8">
+        <div className="overflow-y-auto p-8 space-y-10">
+           {/* Section 1: Transparency Matrix */}
            <div>
-               <h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4">Core Parameters</h3>
-               <div className="rounded-xl border border-slate-700 overflow-hidden">
-                   <table className="w-full text-left border-collapse"><thead className="bg-slate-900/80"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4">Param</th><th className="px-6 py-4">Source</th></tr></thead><tbody className="divide-y divide-slate-800">{DEFINITIONS_DATA.map((r,i)=><tr key={i}><td className="px-6 py-4 text-indigo-300 font-bold text-sm">{r.param}</td><td className="px-6 py-4 text-slate-400 text-sm">{r.source}</td></tr>)}</tbody></table>
+               <h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4 flex items-center gap-2">
+                   <Eye className="w-4 h-4" /> Data Source Transparency
+               </h3>
+               <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+                   <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Metric</th><th className="px-6 py-4 font-semibold">Data Type</th><th className="px-6 py-4 font-semibold">Reason / Source</th></tr></thead>
+                      <tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : r.type === "Calculated" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody>
+                   </table>
                </div>
            </div>
+           
+           {/* Section 2: Definitions */}
            <div>
-               <h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4">Real vs. Static</h3>
-               <div className="rounded-xl border border-slate-700 overflow-hidden">
-                   <table className="w-full text-left border-collapse"><thead className="bg-slate-900/80"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4">Metric</th><th className="px-6 py-4">Type</th><th className="px-6 py-4">Reason</th></tr></thead><tbody className="divide-y divide-slate-800">{TRANSPARENCY_DATA.map((r,i)=><tr key={i}><td className="px-6 py-4 text-slate-200 text-sm">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type.includes("Real")?"bg-emerald-500/10 text-emerald-400 border-emerald-500/20":r.type.includes("Static")?"bg-amber-500/10 text-amber-400 border-amber-500/20":"bg-indigo-500/10 text-indigo-400 border-indigo-500/20"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody></table>
+               <h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4 flex items-center gap-2">
+                   <Info className="w-4 h-4" /> Recommended Parameters (From Whitepaper)
+               </h3>
+               <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+                   <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Parameter</th><th className="px-6 py-4 font-semibold">Unit</th><th className="px-6 py-4 font-semibold">Data Source / Methodology</th><th className="px-6 py-4 font-semibold">Relevance to User</th></tr></thead>
+                      <tbody className="divide-y divide-slate-800 bg-slate-950/50">{DEFINITIONS_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-indigo-300 font-bold text-sm whitespace-nowrap">{r.param}</td><td className="px-6 py-4 text-slate-400 text-xs font-mono">{r.unit}</td><td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{r.source}</td><td className="px-6 py-4 text-slate-400 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/30">{r.relevance}</td></tr>)}</tbody>
+                   </table>
                </div>
            </div>
         </div>
@@ -106,11 +135,16 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
   );
 };
 
+// 1. FIXED TOOLTIP: 100% Solid, High Z-Index, Positioned BELOW Element
 const Tooltip = ({ content, children }) => (
-  <div className="group relative flex items-center justify-center z-[100]">
+  <div className="group relative flex items-center justify-center z-[50]">
     {children}
-    <div className="absolute bottom-full mb-3 px-4 py-3 bg-slate-900 border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[110]">
-      {content}<div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+    {/* top-full positions it below. mt-3 gives spacing. */}
+    <div className="absolute top-full mt-3 px-4 py-3 bg-[#020617] border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[9999]">
+      {content}
+      {/* Arrow points UP (bottom-full relative to tooltip puts it at top) */}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-[1px] border-4 border-transparent border-b-slate-700"></div>
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-[#020617]"></div>
     </div>
   </div>
 );
@@ -121,8 +155,8 @@ const MetricExplanation = ({ type }) => {
   return (
     <div>
       <div className="text-sm font-bold text-white mb-1">{def.title}</div>
-      <p className="text-xs text-slate-300 mb-2 opacity-90">{def.calc}</p>
-      <div className="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-500/10 p-1 rounded inline-block">{def.meaning}</div>
+      <p className="text-xs text-slate-300 mb-2 opacity-90 leading-relaxed">{def.calc}</p>
+      <div className="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20 inline-block">{def.meaning}</div>
     </div>
   );
 };
@@ -130,9 +164,10 @@ const MetricExplanation = ({ type }) => {
 const Sparkline = ({ data, color }) => {
   if (!data || data.length < 2) return <div className="h-8 w-24 bg-white/5 rounded animate-pulse"></div>;
   const height = 32; const width = 100;
-  const max = Math.max(...data, 1); const min = Math.min(...data.filter(d => d > 0)); 
   const points = data.map((val, i) => {
     const x = (i / (data.length - 1)) * width;
+    const max = Math.max(...data, 1);
+    const min = Math.min(...data.filter(d => d > 0));
     const normalizedY = val === 0 ? height : height - ((val - min) / ((max - min) || 1)) * (height - 5); 
     return `${x},${normalizedY}`;
   }).join(' ');
@@ -163,6 +198,7 @@ export default function App() {
   const [visibleProviders, setVisibleProviders] = useState(INITIAL_DATA.map(d => d.name));
   const [tableFilters, setTableFilters] = useState({ archive: false, trace: false, certs: false });
   const [isDefinitionsOpen, setDefinitionsOpen] = useState(false);
+  const [isLogExpanded, setLogExpanded] = useState(false);
 
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
 
@@ -215,6 +251,18 @@ export default function App() {
 
       <DefinitionsModal isOpen={isDefinitionsOpen} onClose={() => setDefinitionsOpen(false)} />
 
+      {isLogExpanded && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
+            <div className="bg-slate-950 border border-slate-700 w-full max-w-5xl h-[80vh] rounded-2xl flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+                    <div className="flex items-center gap-2 text-emerald-400 font-mono text-sm uppercase tracking-wider"><Terminal className="w-4 h-4" /> Live Execution Log</div>
+                    <button onClick={() => setLogExpanded(false)} className="p-2 hover:bg-slate-800 rounded text-slate-400 hover:text-white"><X className="w-5 h-5"/></button>
+                </div>
+                <div className="flex-1 overflow-auto p-6 font-mono text-xs text-slate-300 space-y-2">{logs.map((log, i) => <div key={i} className="border-b border-white/5 pb-1 border-dashed">{log}</div>)}</div>
+            </div>
+        </div>
+      )}
+
       <nav className="border-b border-white/5 bg-[#020617]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
@@ -263,10 +311,9 @@ export default function App() {
                   <button onClick={runBenchmark} disabled={isRunning} className={`w-full py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${isRunning ? 'bg-slate-800 text-slate-500' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'}`}>{isRunning ? <RotateCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}{isRunning ? 'Running Analysis...' : 'Start Benchmark'}</button>
                   
                   {/* LIVE TERMINAL */}
-                  <div className="bg-black/50 rounded-lg p-3 font-mono text-[10px] text-slate-400 h-32 overflow-y-auto border border-slate-800 shadow-inner">
-                      <div className="flex items-center gap-2 mb-2 text-indigo-400 border-b border-slate-800 pb-1"><Terminal className="w-3 h-3" /> System Logs</div>
-                      {logs.length === 0 && <span className="opacity-50">Ready to start...</span>}
-                      {logs.map((log, i) => <div key={i} className="mb-1">{log}</div>)}
+                  <div className="bg-black/50 rounded-lg p-3 font-mono text-[10px] text-slate-400 h-32 flex flex-col border border-slate-800 shadow-inner">
+                      <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800"><div className="flex items-center gap-2 text-indigo-400"><Terminal className="w-3 h-3" /> Logs</div><button onClick={() => setLogExpanded(true)} className="hover:text-white transition-colors"><Maximize2 className="w-3 h-3" /></button></div>
+                      <div className="overflow-y-auto flex-1 space-y-1">{logs.length === 0 && <span className="opacity-50">Ready...</span>}{logs.map((log, i) => <div key={i}>{log}</div>)}</div>
                   </div>
               </GlassCard>
            </div>
@@ -274,9 +321,9 @@ export default function App() {
            {/* MAIN DISPLAY */}
            <div className="lg:col-span-9 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 p-5 md:col-span-2 flex items-center justify-between">
-                     <div className="absolute inset-0 bg-indigo-500/5"></div>
-                     <div className="relative z-10"><p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-2">Highest Rated Provider</p><h2 className="text-3xl font-bold text-white flex items-center gap-3">{winner.name}{winner.score > 0 && <span className="text-sm font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">Score: {winner.score}</span>}</h2></div><Signal className="w-10 h-10 text-indigo-500/20 relative z-10" />
+                  <div className="relative rounded-2xl border border-white/10 p-5 md:col-span-2 flex items-center justify-between overflow-visible">
+                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-950 rounded-2xl -z-10 overflow-hidden"><div className="absolute inset-0 bg-indigo-500/5"></div></div>
+                     <div className="relative z-10 w-full"><p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-2">Highest Rated Provider</p><h2 className="text-3xl font-bold text-white flex items-center gap-3">{winner.name}{winner.score > 0 && <Tooltip content={<div className="p-2 space-y-1"><div className="text-xs font-bold text-white border-b border-slate-700 pb-1 mb-1">Score Calculation</div><div className="flex justify-between text-[10px] text-slate-300"><span>Latency (P50)</span><span>40%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Uptime</span><span>30%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Stability (P99)</span><span>15%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Block Lag</span><span>15%</span></div></div>}><span className="text-sm font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20 cursor-help flex items-center gap-1 hover:bg-indigo-500/20 transition-colors">Score: {winner.score} <HelpCircle className="w-3 h-3 opacity-50" /></span></Tooltip>}</h2></div><Signal className="w-10 h-10 text-indigo-500/20 relative z-10" />
                   </div>
                   <GlassCard className="p-5 flex flex-col justify-center"><p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-1">Monthly Estimate</p><div className="text-2xl font-bold text-white">${(winner.calculatedCost || 0).toLocaleString()}</div><p className="text-[10px] text-slate-500 mt-1">Based on {requestVolume}M requests</p></GlassCard>
               </div>
@@ -305,7 +352,7 @@ export default function App() {
            </div>
         </div>
 
-        {/* ENTERPRISE METRICS TABLE & FILTERS */}
+        {/* ENTERPRISE METRICS TABLE */}
         <div className="mt-8">
             <div className="flex flex-col md:flex-row items-center justify-between mb-4 px-2 gap-4">
                <div className="flex items-center gap-2"><Layers className="w-4 h-4 text-slate-400" /><h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Enterprise Matrix</h3></div>
@@ -321,7 +368,16 @@ export default function App() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider"><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Provider <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>P50 <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Stability (Trend)</th><th className="px-6 py-4">Gas (Gwei)</th><th className="px-6 py-4">Lag</th><th className="px-6 py-4">Chains</th><th className="px-6 py-4">Capabilities</th><th className="px-6 py-4 text-right">Free Tier</th></tr>
+                      <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                          <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Provider <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                          <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>P50 <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                          <th className="px-6 py-4">Stability (Trend)</th>
+                          <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('gas')}>Gas (Gwei) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                          <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('lag')}>Lag <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                          <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('coverage')}>Chains <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                          <th className="px-6 py-4">Capabilities</th>
+                          <th className="px-6 py-4 text-right cursor-pointer hover:text-white" onClick={() => handleSort('freeTier')}>Free Tier <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {sortedAndFilteredData.map((provider) => (
