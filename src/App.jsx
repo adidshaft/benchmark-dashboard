@@ -5,7 +5,7 @@ import {
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
@@ -43,7 +43,7 @@ const INITIAL_DATA = [
   }
 ];
 
-// --- REFERENCE TABLE DATA (From User Image) ---
+// --- REFERENCE TABLE DATA ---
 const DEFINITIONS_DATA = [
   { param: "P50 Latency (Global)", unit: "Milliseconds (ms)", source: "eth_blockNumber response averaged across 5 regions.", relevance: "Critical for UX responsiveness; determines 'snappiness'." },
   { param: "P99 Latency (Stress)", unit: "Milliseconds (ms)", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
@@ -55,6 +55,18 @@ const DEFINITIONS_DATA = [
   { param: "Security Certs", unit: "Badges", source: "SOC 2 Type II, ISO 27001, HIPAA.", relevance: "Mandatory filter for enterprise/institutional clients." },
   { param: "Trace/Debug API", unit: "Boolean", source: "Support for trace_transaction.", relevance: "Critical for developers debugging smart contracts." },
   { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling.", relevance: "Prevents UI bugs where balances flicker." },
+];
+
+// --- TRANSPARENCY DATA (New Section) ---
+const TRANSPARENCY_DATA = [
+    { metric: "Latency (P50 & P99)", type: "Real-Time", reason: "Measured live from your browser to the provider endpoint. Includes network round-trip." },
+    { metric: "Block Lag", type: "Real-Time", reason: "Calculated by comparing the provider's latest block height against the highest block found in the set." },
+    { metric: "Stability Trend", type: "Real-Time", reason: "Visualizes the jitter of the last 15 pings performed in this specific session." },
+    { metric: "Monthly Cost", type: "Dynamic Calc", reason: "Formula: (User Slider Volume × Static Base Price). Adjusted live based on your input." },
+    { metric: "Base Pricing", type: "Static (Hardcoded)", reason: "Pricing models are complex and non-standard. These are manually updated from provider pricing pages." },
+    { metric: "Chain Coverage", type: "Static (Hardcoded)", reason: "Cannot be discovered via standard RPC ping. Requires scraping documentation." },
+    { metric: "Capabilities (Archive/Trace)", type: "Static (Hardcoded)", reason: "Requires checking specific documentation features, not discoverable via simple ping." },
+    { metric: "Historical Uptime", type: "Session Only", reason: "True 30-day history requires integrating external status page APIs. Current value reflects session success rate only." },
 ];
 
 // --- METRIC DEFINITIONS ---
@@ -88,7 +100,7 @@ const METRIC_DEFINITIONS = {
 
 // --- COMPONENTS ---
 
-// 1. DEFINITIONS MODAL (New)
+// 1. DEFINITIONS MODAL (Updated)
 const DefinitionsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
@@ -97,41 +109,88 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose}></div>
       
       {/* Modal Content */}
-      <div className="relative bg-[#0f172a] border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="relative bg-[#0f172a] border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/50">
            <div className="flex items-center gap-3">
               <BookOpen className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-lg font-bold text-white">Benchmark Parameters & Methodology</h2>
+              <h2 className="text-lg font-bold text-white">Benchmark Methodology</h2>
            </div>
            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
            </button>
         </div>
 
-        {/* Scrollable Table */}
-        <div className="overflow-auto p-0">
-           <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-900 sticky top-0 z-10">
-                 <tr className="text-xs uppercase text-slate-400 font-semibold tracking-wider">
-                    <th className="px-6 py-4 border-b border-slate-700">Parameter</th>
-                    <th className="px-6 py-4 border-b border-slate-700">Unit</th>
-                    <th className="px-6 py-4 border-b border-slate-700">Data Source / Methodology</th>
-                    <th className="px-6 py-4 border-b border-slate-700">Relevance to User</th>
-                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                 {DEFINITIONS_DATA.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-800/50 transition-colors">
-                       <td className="px-6 py-4 font-bold text-indigo-300 text-sm">{row.param}</td>
-                       <td className="px-6 py-4 text-slate-400 text-xs font-mono">{row.unit}</td>
-                       <td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{row.source}</td>
-                       <td className="px-6 py-4 text-slate-300 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/20">{row.relevance}</td>
-                    </tr>
-                 ))}
-              </tbody>
-           </table>
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto p-6 space-y-8">
+           
+           {/* Section 1: Parameters */}
+           <div>
+               <h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4 flex items-center gap-2">
+                   <Activity className="w-4 h-4" /> 
+                   Core Parameters
+               </h3>
+               <div className="rounded-xl border border-slate-700 overflow-hidden">
+                   <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-900/80">
+                         <tr className="text-xs uppercase text-slate-400 font-semibold tracking-wider">
+                            <th className="px-6 py-4 border-b border-slate-700">Parameter</th>
+                            <th className="px-6 py-4 border-b border-slate-700">Unit</th>
+                            <th className="px-6 py-4 border-b border-slate-700">Methodology</th>
+                            <th className="px-6 py-4 border-b border-slate-700">Relevance</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                         {DEFINITIONS_DATA.map((row, i) => (
+                            <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                               <td className="px-6 py-4 font-bold text-indigo-300 text-sm">{row.param}</td>
+                               <td className="px-6 py-4 text-slate-400 text-xs font-mono">{row.unit}</td>
+                               <td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{row.source}</td>
+                               <td className="px-6 py-4 text-slate-400 text-sm leading-relaxed italic">{row.relevance}</td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+               </div>
+           </div>
+
+           {/* Section 2: Transparency (New) */}
+           <div>
+               <h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4 flex items-center gap-2">
+                   <Eye className="w-4 h-4" /> 
+                   Data Source Transparency: Real vs. Static
+               </h3>
+               <div className="rounded-xl border border-slate-700 overflow-hidden">
+                   <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-900/80">
+                         <tr className="text-xs uppercase text-slate-400 font-semibold tracking-wider">
+                            <th className="px-6 py-4 border-b border-slate-700">Metric</th>
+                            <th className="px-6 py-4 border-b border-slate-700">Data Type</th>
+                            <th className="px-6 py-4 border-b border-slate-700">Why? (Technical Limitation / Reason)</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                         {TRANSPARENCY_DATA.map((row, i) => (
+                            <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                               <td className="px-6 py-4 font-bold text-slate-200 text-sm">{row.metric}</td>
+                               <td className="px-6 py-4">
+                                   <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${
+                                       row.type.includes("Real") ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                                       row.type.includes("Static") ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                       "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                                   }`}>
+                                       {row.type}
+                                   </span>
+                               </td>
+                               <td className="px-6 py-4 text-slate-400 text-sm leading-relaxed">{row.reason}</td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+               </div>
+           </div>
+
         </div>
       </div>
     </div>
@@ -302,8 +361,8 @@ export default function App() {
                  />
               </div>
 
-              {/* DEFINITIONS BUTTON (NEW) */}
-              <Tooltip content={<div className="p-2 text-xs">View Methodology & Definitions</div>}>
+              {/* DEFINITIONS BUTTON */}
+              <Tooltip content={<div className="p-2 text-xs">View Methodology & Data Sources</div>}>
                 <button 
                   onClick={() => setDefinitionsOpen(true)}
                   className="flex items-center gap-2 text-xs font-bold text-indigo-300 hover:text-white transition-colors bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-3 py-1.5 rounded-full"
