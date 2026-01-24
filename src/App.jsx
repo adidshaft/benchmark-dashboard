@@ -5,11 +5,11 @@ import {
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
-// --- INITIAL DATA (Enriched with Static Enterprise Metrics) ---
+// --- INITIAL DATA ---
 const INITIAL_DATA = [
   { 
     name: 'Alchemy', 
@@ -43,7 +43,21 @@ const INITIAL_DATA = [
   }
 ];
 
-// --- METRIC DEFINITIONS (Based on Recommended Parameters) ---
+// --- REFERENCE TABLE DATA (From User Image) ---
+const DEFINITIONS_DATA = [
+  { param: "P50 Latency (Global)", unit: "Milliseconds (ms)", source: "eth_blockNumber response averaged across 5 regions.", relevance: "Critical for UX responsiveness; determines 'snappiness'." },
+  { param: "P99 Latency (Stress)", unit: "Milliseconds (ms)", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
+  { param: "Chain Support", unit: "Integer", source: "Count of Mainnet/Testnet networks supported.", relevance: "Filters providers for multi-chain projects." },
+  { param: "Archive Access", unit: "Boolean / Badge", source: "Support for eth_getBalance >128 blocks ago.", relevance: "Essential for tax tools, wallets, and analytics." },
+  { param: "Free Tier Cap", unit: "Requests/Month", source: "Normalized standard eth_call equivalent.", relevance: "The 'hook' for startups to build for free." },
+  { param: "Paid Entry Price", unit: "USD / Month", source: "Cost of the cheapest paid plan.", relevance: "Important for projects graduating from hackathons." },
+  { param: "Historical Uptime", unit: "Percentage (%)", source: "30-day rolling average from status pages.", relevance: "Baseline requirement for production apps." },
+  { param: "Security Certs", unit: "Badges", source: "SOC 2 Type II, ISO 27001, HIPAA.", relevance: "Mandatory filter for enterprise/institutional clients." },
+  { param: "Trace/Debug API", unit: "Boolean", source: "Support for trace_transaction.", relevance: "Critical for developers debugging smart contracts." },
+  { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling.", relevance: "Prevents UI bugs where balances flicker." },
+];
+
+// --- METRIC DEFINITIONS ---
 const METRIC_DEFINITIONS = {
   score: {
     title: "CovalScore™",
@@ -73,6 +87,56 @@ const METRIC_DEFINITIONS = {
 };
 
 // --- COMPONENTS ---
+
+// 1. DEFINITIONS MODAL (New)
+const DefinitionsModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose}></div>
+      
+      {/* Modal Content */}
+      <div className="relative bg-[#0f172a] border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/50">
+           <div className="flex items-center gap-3">
+              <BookOpen className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-lg font-bold text-white">Benchmark Parameters & Methodology</h2>
+           </div>
+           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white">
+              <X className="w-5 h-5" />
+           </button>
+        </div>
+
+        {/* Scrollable Table */}
+        <div className="overflow-auto p-0">
+           <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-900 sticky top-0 z-10">
+                 <tr className="text-xs uppercase text-slate-400 font-semibold tracking-wider">
+                    <th className="px-6 py-4 border-b border-slate-700">Parameter</th>
+                    <th className="px-6 py-4 border-b border-slate-700">Unit</th>
+                    <th className="px-6 py-4 border-b border-slate-700">Data Source / Methodology</th>
+                    <th className="px-6 py-4 border-b border-slate-700">Relevance to User</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                 {DEFINITIONS_DATA.map((row, i) => (
+                    <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                       <td className="px-6 py-4 font-bold text-indigo-300 text-sm">{row.param}</td>
+                       <td className="px-6 py-4 text-slate-400 text-xs font-mono">{row.unit}</td>
+                       <td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{row.source}</td>
+                       <td className="px-6 py-4 text-slate-300 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/20">{row.relevance}</td>
+                    </tr>
+                 ))}
+              </tbody>
+           </table>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Tooltip = ({ content, children }) => (
   <div className="group relative flex items-center justify-center z-[100]">
@@ -148,6 +212,9 @@ export default function App() {
   const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' });
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleProviders, setVisibleProviders] = useState(INITIAL_DATA.map(d => d.name));
+  
+  // New State for Modal
+  const [isDefinitionsOpen, setDefinitionsOpen] = useState(false);
 
   const { benchmarkData, isRunning, runBenchmark } = useBenchmark(INITIAL_DATA, network, precision, requestType);
 
@@ -155,7 +222,6 @@ export default function App() {
   const processedData = useMemo(() => {
     return benchmarkData.map(p => {
       const calculatedCost = Math.round(p.baseCost * requestVolume);
-      // Score Calculation: Weights P50 (40%), Uptime (30%), Lag (15%), P99 (15%)
       const latencyScore = Math.max(0, 100 - (p.latency > 0 ? p.latency / 4 : 100));
       const p99Score = Math.max(0, 100 - (p.p99 > 0 ? p.p99 / 4 : 100));
       const uptimeScore = p.uptime;
@@ -207,6 +273,9 @@ export default function App() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[100px]" />
       </div>
 
+      {/* RENDER MODAL */}
+      <DefinitionsModal isOpen={isDefinitionsOpen} onClose={() => setDefinitionsOpen(false)} />
+
       <nav className="border-b border-white/5 bg-[#020617]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
@@ -220,6 +289,8 @@ export default function App() {
             </div>
           </div>
           <div className="hidden md:flex items-center gap-6">
+              
+              {/* SEARCH BAR */}
               <div className="flex items-center bg-slate-900 border border-slate-800 rounded-full px-3 py-1.5 gap-2">
                  <Search className="w-4 h-4 text-slate-500" />
                  <input 
@@ -230,6 +301,19 @@ export default function App() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                  />
               </div>
+
+              {/* DEFINITIONS BUTTON (NEW) */}
+              <Tooltip content={<div className="p-2 text-xs">View Methodology & Definitions</div>}>
+                <button 
+                  onClick={() => setDefinitionsOpen(true)}
+                  className="flex items-center gap-2 text-xs font-bold text-indigo-300 hover:text-white transition-colors bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-3 py-1.5 rounded-full"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Docs
+                </button>
+              </Tooltip>
+
+              {/* STATUS INDICATOR */}
               <div className={`flex items-center gap-2 text-xs font-medium text-slate-500 border border-white/5 px-3 py-1.5 rounded-full bg-white/[0.02]`}>
                   <div className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>
                   {isRunning ? 'Benchmarking...' : 'System Operational'}
