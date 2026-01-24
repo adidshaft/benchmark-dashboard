@@ -5,7 +5,7 @@ import {
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
@@ -54,6 +54,7 @@ const SUPPORTED_CHAINS = [
     { id: 'avalanche', label: 'Avalanche', color: 'bg-red-600' },
 ];
 
+// --- REFERENCE DATA ---
 const DEFINITIONS_DATA = [
   { param: "P50 Latency", unit: "ms", source: "Median ping from client.", relevance: "General responsiveness." },
   { param: "P99 Stress", unit: "ms", source: "Worst case during load.", relevance: "Critical for congestion." },
@@ -166,6 +167,8 @@ const Badge = ({ children, color = "indigo" }) => {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border ${colors[color] || colors.indigo}`}>{children}</span>;
 };
 
+// --- APP ---
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('score');
   const [network, setNetwork] = useState('ethereum'); 
@@ -174,7 +177,10 @@ export default function App() {
   const [requestVolume, setRequestVolume] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' });
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // -- NEW STATES FOR FILTERS --
   const [visibleProviders, setVisibleProviders] = useState(INITIAL_DATA.map(d => d.name));
+  const [tableFilters, setTableFilters] = useState({ archive: false, trace: false, certs: false });
   const [isDefinitionsOpen, setDefinitionsOpen] = useState(false);
 
   const { benchmarkData, isRunning, runBenchmark } = useBenchmark(INITIAL_DATA, network, precision, requestType);
@@ -193,7 +199,16 @@ export default function App() {
   }, [benchmarkData, requestVolume]);
 
   const sortedAndFilteredData = useMemo(() => {
-    let data = processedData.filter(d => visibleProviders.includes(d.name) && d.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    let data = processedData.filter(d => 
+      visibleProviders.includes(d.name) && 
+      d.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Apply Table Filters
+    if (tableFilters.archive) data = data.filter(d => d.archive);
+    if (tableFilters.trace) data = data.filter(d => d.trace);
+    if (tableFilters.certs) data = data.filter(d => d.certs.length > 0);
+
     if (sortConfig.key) {
       data.sort((a, b) => {
         if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -202,7 +217,7 @@ export default function App() {
       });
     }
     return data;
-  }, [processedData, sortConfig, searchQuery, visibleProviders]);
+  }, [processedData, sortConfig, searchQuery, visibleProviders, tableFilters]);
 
   const getWinner = () => {
     const active = sortedAndFilteredData.filter(p => p.latency > 0 && p.latency !== 999);
@@ -213,6 +228,7 @@ export default function App() {
   const winner = getWinner();
   const handleSort = (key) => setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === 'desc' ? 'asc' : 'desc' });
   const toggleProvider = (name) => setVisibleProviders(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]);
+  const toggleTableFilter = (key) => setTableFilters(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-indigo-500/30 overflow-x-hidden relative">
@@ -243,22 +259,35 @@ export default function App() {
            {/* CONFIG PANEL */}
            <div className="lg:col-span-3 space-y-4">
               <GlassCard className="p-5 space-y-6 border-t-4 border-t-indigo-500/50">
+                  {/* Network Selector */}
                   <div>
                     <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2"><Globe className="w-3 h-3" /> Target Network</label>
                     <div className="grid grid-cols-1 gap-1">
                       {SUPPORTED_CHAINS.map((net) => (
                         <button key={net.id} onClick={() => setNetwork(net.id)} className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${network === net.id ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}>
-                          <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${net.color}`}></div>
-                              <span className="capitalize">{net.label}</span>
-                          </div>
-                          {network === net.id && <CheckCircle2 className="w-3 h-3 text-indigo-400" />}
+                          <div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${net.color}`}></div><span className="capitalize">{net.label}</span></div>{network === net.id && <CheckCircle2 className="w-3 h-3 text-indigo-400" />}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="h-px bg-white/5"></div>
-                  <div><label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2"><Server className="w-3 h-3" /> Workload Type</label><div className="flex p-1 bg-slate-950 rounded-lg border border-slate-800"><button onClick={() => setRequestType('light')} className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${requestType === 'light' ? 'bg-slate-700 text-white shadow' : 'text-slate-500'}`}>Light (Ping)</button><button onClick={() => setRequestType('heavy')} className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${requestType === 'heavy' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500'}`}>Heavy (Txns)</button></div></div>
+
+                  {/* Manual Provider Selection */}
+                  <div>
+                    <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2"><Filter className="w-3 h-3" /> Select Providers</label>
+                    <div className="space-y-1">
+                      {INITIAL_DATA.map((p) => (
+                          <button key={p.name} onClick={() => toggleProvider(p.name)} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all border ${visibleProviders.includes(p.name) ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-transparent border-transparent text-slate-500 hover:bg-white/5'}`}>
+                             <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }}></div>
+                                {p.name}
+                             </div>
+                             {visibleProviders.includes(p.name) ? <CheckSquare className="w-3 h-3 text-indigo-400" /> : <Square className="w-3 h-3 text-slate-600" />}
+                          </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="h-px bg-white/5"></div>
                   <div><label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2"><DollarSign className="w-3 h-3" /> Volume: <span className="text-white">{requestVolume}M</span> /mo</label><input type="range" min="1" max="100" step="1" value={requestVolume} onChange={(e) => setRequestVolume(Number(e.target.value))} className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"/></div>
                   <div className="h-px bg-white/5"></div>
@@ -300,11 +329,29 @@ export default function App() {
            </div>
         </div>
 
+        {/* ENTERPRISE METRICS TABLE & FILTERS */}
         <div className="mt-8">
-            <div className="flex items-center justify-between mb-4 px-2">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-4 px-2 gap-4">
                <div className="flex items-center gap-2"><Layers className="w-4 h-4 text-slate-400" /><h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Enterprise Matrix</h3></div>
-               <div className="flex gap-2">{INITIAL_DATA.map(p => (<button key={p.name} onClick={() => toggleProvider(p.name)} className={`w-2 h-2 rounded-full transition-all ${visibleProviders.includes(p.name) ? 'opacity-100 scale-110' : 'opacity-30'}`} style={{ backgroundColor: p.color }} title={p.name} />))}</div>
+               
+               {/* NEW TABLE FILTERS */}
+               <div className="flex items-center gap-2">
+                   <span className="text-xs font-bold text-slate-500 uppercase mr-2">Filters:</span>
+                   
+                   <button onClick={() => toggleTableFilter('archive')} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${tableFilters.archive ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300' : 'border-slate-800 text-slate-500 hover:text-slate-300'}`}>
+                       <Database className="w-3 h-3" /> Archive
+                   </button>
+                   
+                   <button onClick={() => toggleTableFilter('trace')} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${tableFilters.trace ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'border-slate-800 text-slate-500 hover:text-slate-300'}`}>
+                       <FileCode className="w-3 h-3" /> Trace
+                   </button>
+
+                   <button onClick={() => toggleTableFilter('certs')} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${tableFilters.certs ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' : 'border-slate-800 text-slate-500 hover:text-slate-300'}`}>
+                       <ShieldCheck className="w-3 h-3" /> Certified
+                   </button>
+               </div>
             </div>
+
             <GlassCard className="p-0 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
