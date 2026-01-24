@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-const NETWORK_CONFIG = {
+export const NETWORK_CONFIG = {
   ethereum: {
     id: 1,
     Alchemy: { url: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
