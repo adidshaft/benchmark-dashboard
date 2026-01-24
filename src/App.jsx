@@ -4,60 +4,86 @@ import {
 } from 'recharts';
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
-  Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search
+  Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
+  ShieldCheck, Database, FileCode, Gauge
 } from 'lucide-react';
 import { useBenchmark } from './hooks/useBenchmark';
 
-// --- INITIAL DATA ---
+// --- INITIAL DATA (Enriched with Static Enterprise Metrics) ---
 const INITIAL_DATA = [
-  { name: 'Alchemy', latency: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0] },
-  { name: 'Infura', latency: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0] },
-  { name: 'QuickNode', latency: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0,0] },
-  { name: 'Covalent', latency: 0, uptime: 100, baseCost: 12, coverage: 100, color: '#f59e0b', history: [0,0] },
-  { name: 'Mobula', latency: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0,0] },
-  { name: 'Codex', latency: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0,0] }
+  { 
+    name: 'Alchemy', 
+    latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0],
+    freeTier: '300M CUs', archive: true, trace: true, certs: ['SOC2', 'GDPR']
+  },
+  { 
+    name: 'Infura', 
+    latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0],
+    freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA']
+  },
+  { 
+    name: 'QuickNode', 
+    latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0,0],
+    freeTier: '10M Credits', archive: true, trace: true, certs: ['SOC2']
+  },
+  { 
+    name: 'Covalent', 
+    latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0,0],
+    freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2']
+  },
+  { 
+    name: 'Mobula', 
+    latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0,0],
+    freeTier: 'Freemium', archive: false, trace: false, certs: []
+  },
+  { 
+    name: 'Codex', 
+    latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0,0],
+    freeTier: 'Free', archive: false, trace: false, certs: []
+  }
 ];
 
-// --- METRIC DEFINITIONS ---
+// --- METRIC DEFINITIONS (Based on Recommended Parameters) ---
 const METRIC_DEFINITIONS = {
   score: {
     title: "CovalScore™",
-    calc: "Proprietary composite index (0-100) weighting Latency (40%), Uptime (40%), and Block Lag (20%).",
-    meaning: "Higher is better. The single best metric for overall quality."
+    calc: "Composite index (0-100) weighting P50 Latency (40%), Stability (40%), and Lag (20%).",
+    meaning: "Higher is better. Best overall performance indicator."
   },
   speed: {
-    title: "Latency (Speed)",
-    calc: "Time to First Byte (TTFB). Measures the round-trip time for the selected request type.",
-    meaning: "Lower is better. High latency causes laggy dApp interfaces."
+    title: "P50 Latency (Global)",
+    calc: "Median response time. Filters out outliers to show 'typical' performance.",
+    meaning: "Lower is better. Critical for general UX responsiveness."
+  },
+  p99: {
+    title: "P99 Latency (Stress)",
+    calc: "Worst-case response time during burst load. Indicates if provider chokes under pressure.",
+    meaning: "Lower is better. Vital for high-traffic dApps."
   },
   cost: {
     title: "Est. Monthly Cost",
-    calc: "Projected monthly bill based on your selected volume (slider) and enterprise rate cards.",
-    meaning: "Lower is better. Optimization is key for scale."
+    calc: "Projected cost based on slider volume + entry price.",
+    meaning: "Lower is better. Optimization for scale."
   },
   reliability: {
-    title: "Session Reliability",
-    calc: "Percentage of successful pings during this active session.",
-    meaning: "Higher is better. <99% indicates critical instability."
+    title: "Historical Uptime",
+    calc: "Session success rate combined with 30-day historical SLA status.",
+    meaning: "Higher is better. Enterprise grade requires >99.9%."
   }
 };
 
 // --- COMPONENTS ---
 
-// 1. Solid Opaque Tooltip Wrapper
 const Tooltip = ({ content, children }) => (
   <div className="group relative flex items-center justify-center z-[100]">
     {children}
-    {/* CHANGED: Removed /90 opacity and backdrop-blur. Now solid slate-900. */}
     <div className="absolute bottom-full mb-3 px-4 py-3 bg-slate-900 border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[110]">
       {content}
-      {/* Arrow: Matched to solid slate-900 */}
       <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
     </div>
   </div>
 );
 
-// 2. Metric Explanation Card
 const MetricExplanation = ({ type }) => {
   const def = METRIC_DEFINITIONS[type];
   if (!def) return null;
@@ -76,10 +102,8 @@ const MetricExplanation = ({ type }) => {
 
 const Sparkline = ({ data, color }) => {
   if (!data || data.length < 2) return <div className="h-8 w-24 bg-white/5 rounded animate-pulse"></div>;
-  const height = 32;
-  const width = 100;
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data.filter(d => d > 0)); 
+  const height = 32; const width = 100;
+  const max = Math.max(...data, 1); const min = Math.min(...data.filter(d => d > 0)); 
   const points = data.map((val, i) => {
     const x = (i / (data.length - 1)) * width;
     const normalizedY = val === 0 ? height : height - ((val - min) / ((max - min) || 1)) * (height - 5); 
@@ -106,6 +130,7 @@ const Badge = ({ children, color = "indigo" }) => {
     emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     red: "bg-red-500/10 text-red-400 border-red-500/20",
     amber: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    slate: "bg-slate-700/50 text-slate-300 border-slate-600",
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border ${colors[color] || colors.indigo}`}>
@@ -126,14 +151,18 @@ export default function App() {
 
   const { benchmarkData, isRunning, runBenchmark } = useBenchmark(INITIAL_DATA, network, precision, requestType);
 
+  // --- PROCESSING LOGIC ---
   const processedData = useMemo(() => {
     return benchmarkData.map(p => {
       const calculatedCost = Math.round(p.baseCost * requestVolume);
+      // Score Calculation: Weights P50 (40%), Uptime (30%), Lag (15%), P99 (15%)
       const latencyScore = Math.max(0, 100 - (p.latency > 0 ? p.latency / 4 : 100));
+      const p99Score = Math.max(0, 100 - (p.p99 > 0 ? p.p99 / 4 : 100));
       const uptimeScore = p.uptime;
       const lagVal = typeof p.lag === 'number' ? p.lag : 0;
       const lagScore = Math.max(0, 100 - (lagVal * 10));
-      const score = Math.round((latencyScore * 0.4) + (uptimeScore * 0.4) + (lagScore * 0.2));
+      
+      const score = Math.round((latencyScore * 0.4) + (uptimeScore * 0.3) + (lagScore * 0.15) + (p99Score * 0.15));
       return { ...p, calculatedCost, score };
     });
   }, [benchmarkData, requestVolume]);
@@ -212,6 +241,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
            
+           {/* CONFIG PANEL */}
            <div className="lg:col-span-3 space-y-4">
               <GlassCard className="p-5 space-y-6 border-t-4 border-t-indigo-500/50">
                   <div>
@@ -220,77 +250,40 @@ export default function App() {
                     </label>
                     <div className="flex flex-col gap-1">
                       {['ethereum', 'polygon', 'arbitrum'].map((net) => (
-                        <button
-                          key={net}
-                          onClick={() => setNetwork(net)}
-                          className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            network === net 
-                              ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30' 
-                              : 'text-slate-400 hover:bg-white/5 border border-transparent'
-                          }`}
-                        >
+                        <button key={net} onClick={() => setNetwork(net)} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${network === net ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}>
                           <span className="capitalize">{net}</span>
                           {network === net && <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>}
                         </button>
                       ))}
                     </div>
                   </div>
-
                   <div className="h-px bg-white/5"></div>
-
                   <div>
                     <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2">
                        <Server className="w-3 h-3" /> Workload Type
                     </label>
                     <div className="flex p-1 bg-slate-950 rounded-lg border border-slate-800">
-                        <button onClick={() => setRequestType('light')} className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${requestType === 'light' ? 'bg-slate-700 text-white shadow' : 'text-slate-500'}`}>
-                           Light (Ping)
-                        </button>
-                        <button onClick={() => setRequestType('heavy')} className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${requestType === 'heavy' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500'}`}>
-                           Heavy (Txns)
-                        </button>
+                        <button onClick={() => setRequestType('light')} className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${requestType === 'light' ? 'bg-slate-700 text-white shadow' : 'text-slate-500'}`}>Light (Ping)</button>
+                        <button onClick={() => setRequestType('heavy')} className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${requestType === 'heavy' ? 'bg-indigo-600 text-white shadow' : 'text-slate-500'}`}>Heavy (Txns)</button>
                     </div>
                   </div>
-
                   <div className="h-px bg-white/5"></div>
-
                   <div>
                     <label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2">
                        <DollarSign className="w-3 h-3" /> Volume: <span className="text-white">{requestVolume}M</span> /mo
                     </label>
-                    <input 
-                      type="range" 
-                      min="1" max="100" step="1" 
-                      value={requestVolume} 
-                      onChange={(e) => setRequestVolume(Number(e.target.value))}
-                      className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-500 mt-2">
-                        <span>1M</span>
-                        <span>50M</span>
-                        <span>100M</span>
-                    </div>
+                    <input type="range" min="1" max="100" step="1" value={requestVolume} onChange={(e) => setRequestVolume(Number(e.target.value))} className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"/>
                   </div>
-
                   <div className="h-px bg-white/5"></div>
-
-                  <button 
-                    onClick={runBenchmark}
-                    disabled={isRunning}
-                    className={`w-full py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                      isRunning 
-                        ? 'bg-slate-800 text-slate-500' 
-                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'
-                    }`}
-                  >
+                  <button onClick={runBenchmark} disabled={isRunning} className={`w-full py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${isRunning ? 'bg-slate-800 text-slate-500' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'}`}>
                     {isRunning ? <RotateCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                    {isRunning ? 'Testing...' : 'Run Analysis'}
+                    {isRunning ? 'Analyzing...' : 'Run Analysis'}
                   </button>
               </GlassCard>
            </div>
 
+           {/* MAIN DISPLAY */}
            <div className="lg:col-span-9 flex flex-col gap-6">
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-white/10 p-5 md:col-span-2 flex items-center justify-between">
                      <div className="absolute inset-0 bg-indigo-500/5"></div>
@@ -298,20 +291,11 @@ export default function App() {
                         <p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-2">Highest Rated Provider</p>
                         <h2 className="text-3xl font-bold text-white flex items-center gap-3">
                            {winner.name}
-                           {winner.score > 0 && <span className="text-sm font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">
-                               Score: {winner.score}/100
-                           </span>}
+                           {winner.score > 0 && <span className="text-sm font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">Score: {winner.score}</span>}
                         </h2>
-                        <div className="mt-2 text-xs text-slate-500 flex gap-4">
-                            <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> {winner.latency}ms</span>
-                            <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> ${winner.calculatedCost}/mo</span>
-                        </div>
                      </div>
-                     <div className="relative z-10">
-                         <Signal className="w-10 h-10 text-indigo-500/20" />
-                     </div>
+                     <Signal className="w-10 h-10 text-indigo-500/20 relative z-10" />
                   </div>
-
                   <GlassCard className="p-5 flex flex-col justify-center">
                       <p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-1">Monthly Estimate</p>
                       <div className="text-2xl font-bold text-white">${(winner.calculatedCost || 0).toLocaleString()}</div>
@@ -324,19 +308,12 @@ export default function App() {
                     <div className="flex gap-2 flex-wrap">
                         {[
                           { id: 'score', label: 'CovalScore', icon: Activity },
-                          { id: 'speed', label: 'Latency', icon: Zap },
+                          { id: 'speed', label: 'P50 Latency', icon: Zap },
+                          { id: 'p99', label: 'P99 Stress', icon: Gauge },
                           { id: 'cost', label: 'Est. Cost', icon: DollarSign },
-                          { id: 'reliability', label: 'Reliability', icon: CheckCircle2 },
                         ].map((tab) => (
                           <Tooltip key={tab.id} content={<MetricExplanation type={tab.id} />}>
-                              <button
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                                  activeTab === tab.id 
-                                    ? 'bg-white/10 border-white/20 text-white' 
-                                    : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
-                                }`}
-                              >
+                              <button onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all border ${activeTab === tab.id ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'}`}>
                                 <tab.icon className="w-3 h-3" />
                                 {tab.label}
                               </button>
@@ -344,7 +321,6 @@ export default function App() {
                         ))}
                     </div>
                  </div>
-                 
                  <div className="w-full mt-4 h-[350px] min-h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={sortedAndFilteredData} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
@@ -360,10 +336,7 @@ export default function App() {
                       <XAxis type="number" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={[0, 'auto']} hide />
                       <YAxis dataKey="name" type="category" stroke="#e2e8f0" width={90} fontSize={13} fontWeight={600} tickLine={false} axisLine={false} />
                       <RechartsTooltip cursor={{ fill: '#ffffff', opacity: 0.03 }} contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px', color: '#f8fafc' }} />
-                      <Bar 
-                        dataKey={activeTab === 'score' ? 'score' : activeTab === 'speed' ? 'latency' : activeTab === 'cost' ? 'calculatedCost' : 'uptime'} 
-                        radius={[0, 6, 6, 0]} barSize={36} animationDuration={800}
-                      >
+                      <Bar dataKey={activeTab === 'score' ? 'score' : activeTab === 'speed' ? 'latency' : activeTab === 'p99' ? 'p99' : 'calculatedCost'} radius={[0, 6, 6, 0]} barSize={36} animationDuration={800}>
                         {sortedAndFilteredData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={`url(#grad${index})`} stroke={entry.color} strokeWidth={1} strokeOpacity={0.5} />
                         ))}
@@ -375,22 +348,16 @@ export default function App() {
            </div>
         </div>
 
+        {/* ENTERPRISE METRICS TABLE */}
         <div className="mt-8">
             <div className="flex items-center justify-between mb-4 px-2">
                <div className="flex items-center gap-2">
                    <Layers className="w-4 h-4 text-slate-400" />
-                   <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Performance Matrix</h3>
+                   <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Enterprise Matrix</h3>
                </div>
-               
                <div className="flex gap-2">
                   {INITIAL_DATA.map(p => (
-                      <button 
-                        key={p.name} 
-                        onClick={() => toggleProvider(p.name)}
-                        className={`w-2 h-2 rounded-full transition-all ${visibleProviders.includes(p.name) ? 'opacity-100 scale-110' : 'opacity-30'}`}
-                        style={{ backgroundColor: p.color }}
-                        title={p.name}
-                      />
+                      <button key={p.name} onClick={() => toggleProvider(p.name)} className={`w-2 h-2 rounded-full transition-all ${visibleProviders.includes(p.name) ? 'opacity-100 scale-110' : 'opacity-30'}`} style={{ backgroundColor: p.color }} title={p.name} />
                   ))}
                </div>
             </div>
@@ -401,12 +368,13 @@ export default function App() {
                     <thead>
                       <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
                         <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Provider <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
-                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('score')}>CovalScore <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
-                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>Latency <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
-                        <th className="px-6 py-4">Stability (Last 15)</th>
-                        <th className="px-6 py-4">Lag</th>
-                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('calculatedCost')}>Est. Cost <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
-                        <th className="px-6 py-4 text-right">Health</th>
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>P50 <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('p99')}>P99 Stress <ArrowUpDown className="w-3 h-3 inline ml-1" /></th>
+                        <th className="px-6 py-4">Stability (Trend)</th>
+                        <th className="px-6 py-4">Lag (Consistency)</th>
+                        <th className="px-6 py-4">Chains</th>
+                        <th className="px-6 py-4">Capabilities</th>
+                        <th className="px-6 py-4 text-right">Free Tier</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -416,40 +384,25 @@ export default function App() {
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>
                             {provider.name}
                           </td>
-                          <td className="px-6 py-4">
-                             {provider.score > 0 ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                        <div className="h-full bg-indigo-500" style={{ width: `${provider.score}%` }}></div>
-                                    </div>
-                                    <span className="text-white font-bold text-xs">{provider.score}</span>
-                                </div>
-                             ) : <span className="text-slate-600">-</span>}
+                          <td className="px-6 py-4 text-slate-300 font-mono">
+                            {provider.latency > 0 ? <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span> : <span className="text-slate-600">-</span>}
                           </td>
                           <td className="px-6 py-4 text-slate-300 font-mono">
-                            {provider.latency > 0 ? (
-                                <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span>
-                            ) : <span className="text-slate-600">-</span>}
+                            {provider.p99 > 0 ? <span className={provider.p99 < 300 ? 'text-indigo-400' : 'text-amber-400'}>{provider.p99} ms</span> : <span className="text-slate-600">-</span>}
                           </td>
+                          <td className="px-6 py-4"><Sparkline data={provider.history} color={provider.color} /></td>
                           <td className="px-6 py-4">
-                              <Sparkline data={provider.history} color={provider.color} />
+                             {provider.lag === 0 ? <Badge color="emerald">Synced</Badge> : provider.lag === 'N/A' ? <span className="text-xs text-slate-600">N/A</span> : <Badge color="amber">-{provider.lag} Blocks</Badge>}
                           </td>
+                          <td className="px-6 py-4 text-slate-400 text-xs">{provider.coverage} Nets</td>
                           <td className="px-6 py-4">
-                             {provider.lag === 0 ? <Badge color="emerald">Synced</Badge> 
-                              : provider.lag === 'N/A' ? <span className="text-xs text-slate-600">N/A</span>
-                              : typeof provider.lag === 'string' ? <Badge color="red">{provider.lag}</Badge>
-                              : <Badge color="amber">-{provider.lag} Blocks</Badge>
-                             }
+                              <div className="flex gap-1.5">
+                                  {provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Support</div>}><Database className="w-4 h-4 text-indigo-400" /></Tooltip>}
+                                  {provider.trace && <Tooltip content={<div className="p-2 text-xs">Trace/Debug API Support</div>}><FileCode className="w-4 h-4 text-emerald-400" /></Tooltip>}
+                                  {provider.certs.length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {provider.certs.join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-amber-400" /></Tooltip>}
+                              </div>
                           </td>
-                          <td className="px-6 py-4 text-slate-400 font-mono text-xs">
-                             ${provider.calculatedCost.toLocaleString()} <span className="opacity-50">/mo</span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                             <div className="flex justify-end items-center gap-2">
-                                <Activity className={`w-4 h-4 ${provider.uptime === 100 ? 'text-emerald-500' : 'text-red-500'}`} />
-                                <span className="text-xs font-mono text-slate-400">{provider.uptime}%</span>
-                             </div>
-                          </td>
+                          <td className="px-6 py-4 text-right text-xs text-slate-400">{provider.freeTier}</td>
                         </tr>
                       ))}
                     </tbody>
