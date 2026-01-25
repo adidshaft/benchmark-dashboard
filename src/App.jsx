@@ -1,26 +1,35 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, Radar as RechartsRadar
 } from 'recharts';
 import { 
-  Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
-  Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert, Target, Download, Box, AlertTriangle, Check, Briefcase, Sparkles, Radio, Circle
+  Zap, Globe, CheckCircle2, Play, RotateCw, BookOpen, X, Eye, ChevronDown, 
+  Terminal, Maximize2, HelpCircle, ShieldAlert, Download, Box, AlertTriangle, 
+  Check, Briefcase, Search, Hexagon, Sparkles, Activity, Gauge, DollarSign, 
+  ShieldCheck, Database, FileCode, ArrowUpDown, Info // <--- FIXED: Added Info Import
 } from 'lucide-react';
 
 // --- CUSTOM HOOKS ---
 import { useBenchmark, NETWORK_CONFIG } from './hooks/useBenchmark';
 import { useSmartBenchmark } from './hooks/useSmartBenchmark';
 import { useStatusPage } from './hooks/useStatusPage';
+import { usePortfolioBenchmark } from './hooks/usePortfolioBenchmark';
 
 // --- COMPONENTS & CONFIG ---
 import MetricExplanation from './components/MetricExplanation';
 import Tooltip from './components/Tooltip';
-import { INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS, DEFINITIONS_DATA, TRANSPARENCY_DATA } from './config/constants';
+import { 
+  INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, 
+  DEFINITIONS_DATA, TRANSPARENCY_DATA 
+} from './config/constants';
 
-// (Local small components can stay here or move to /components/ui)
-const GlassCard = ({ children, className = "" }) => <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>;
+// --- UI HELPERS ---
+const GlassCard = ({ children, className = "" }) => (
+  <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>
+    {children}
+  </div>
+);
 
 const Sparkline = ({ data = [], color }) => { 
   if (!data || data.length < 2) return <div className="h-8 w-24 bg-white/5 rounded animate-pulse"></div>;
@@ -34,7 +43,13 @@ const Sparkline = ({ data = [], color }) => {
     const normalizedY = val === 0 ? 32 : 32 - ((val - min) / range) * 28; 
     return `${x},${normalizedY}`;
   }).join(' ');
-  return <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" /></svg></div>;
+  return (
+    <div className="h-8 w-24 opacity-80">
+      <svg width="100%" height="100%" viewBox="0 0 100 32" preserveAspectRatio="none">
+        <polyline points={points} fill="none" stroke={color} strokeWidth="2" />
+      </svg>
+    </div>
+  );
 };
 
 const formatBigNumber = (valueStr) => {
@@ -43,7 +58,7 @@ const formatBigNumber = (valueStr) => {
     return valueStr;
 };
 
-// Modals
+// --- MODALS ---
 const DefinitionsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
@@ -51,12 +66,76 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
       <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={onClose}></div>
       <div className="relative bg-[#020617] border border-slate-700 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between px-8 py-6 border-b border-slate-800 bg-slate-900/50">
-           <div className="flex items-center gap-4"><div className="p-2 bg-indigo-500/10 rounded-lg"><BookOpen className="w-6 h-6 text-indigo-400" /></div><div><h2 className="text-xl font-bold text-white">Benchmark Methodology</h2><p className="text-xs text-slate-400 mt-0.5">Intelligence Suite Documentation</p></div></div>
+           <div className="flex items-center gap-4">
+             <div className="p-2 bg-indigo-500/10 rounded-lg"><BookOpen className="w-6 h-6 text-indigo-400" /></div>
+             <div><h2 className="text-xl font-bold text-white">Benchmark Methodology</h2><p className="text-xs text-slate-400 mt-0.5">Intelligence Suite Documentation</p></div>
+           </div>
            <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"><X className="w-6 h-6" /></button>
         </div>
         <div className="overflow-y-auto p-8 space-y-10">
-           <div><h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4 flex items-center gap-2"><Eye className="w-4 h-4" /> Data Source Transparency</h3><div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg"><table className="w-full text-left border-collapse"><thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Metric</th><th className="px-6 py-4 font-semibold">Data Type</th><th className="px-6 py-4 font-semibold">Reason / Source</th></tr></thead><tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : r.type === "Calculated" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody></table></div></div>
-           <div><h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4 flex items-center gap-2"><Info className="w-4 h-4" /> Competitive Benchmarking Parameters</h3><div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg"><table className="w-full text-left border-collapse"><thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Parameter</th><th className="px-6 py-4 font-semibold">Unit</th><th className="px-6 py-4 font-semibold">Data Source / Methodology</th><th className="px-6 py-4 font-semibold">Relevance to User</th></tr></thead><tbody className="divide-y divide-slate-800 bg-slate-950/50">{DEFINITIONS_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-indigo-300 font-bold text-sm whitespace-nowrap">{r.param}</td><td className="px-6 py-4 text-slate-400 text-xs font-mono">{r.unit}</td><td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{r.source}</td><td className="px-6 py-4 text-slate-400 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/30">{r.relevance}</td></tr>)}</tbody></table></div></div>
+           
+           {/* NEW SECTION: Builder's Impact Framework */}
+           <div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-purple-400" /> 
+                  The Builder's Impact Framework
+              </h3>
+              <p className="text-sm text-slate-300 mb-6 leading-relaxed">
+                  Traditional benchmarks only measure "Node Performance" (ping latency). This is often misleading because building a real dApp requires complex data (Tokens, Prices, Images) that raw nodes cannot provide efficiently. 
+                  <br/><br/>
+                  This framework simulates a real-world scenario: <strong>"Loading a User's Portfolio"</strong>, to measure the actual experience of a developer building on these platforms.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800">
+                      <div className="text-xs uppercase tracking-wider text-purple-400 font-bold mb-2">Metric 1: R.A.F.</div>
+                      <div className="text-white font-bold mb-1">Request Amplification Factor</div>
+                      <p className="text-xs text-slate-400">
+                          How many HTTP requests does the frontend need to send to perform <strong>1 Logical Task</strong>? 
+                          <br/><br/>
+                          <em>Ideal Score: 1. (Unified API)</em>
+                          <br/>
+                          <em>Poor Score: 10+. (Waterfall fetching)</em>
+                      </p>
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
+                      <div className="text-xs uppercase tracking-wider text-emerald-400 font-bold mb-2">Metric 2: Data Richness</div>
+                      <div className="text-white font-bold mb-1">Completeness & Metadata</div>
+                      <p className="text-xs text-slate-400">
+                          Does the provider return usable application data (Images, CSS-friendly decimals, USD Prices) or just raw Blockchain Hex?
+                          <br/><br/>
+                          <em>Higher score means less client-side processing code required.</em>
+                      </p>
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
+                      <div className="text-xs uppercase tracking-wider text-amber-400 font-bold mb-2">Metric 3: Time-to-Interactive</div>
+                      <div className="text-white font-bold mb-1">The "Waterfall" Effect</div>
+                      <p className="text-xs text-slate-400">
+                          Measures the total time until the UI is ready. This accounts for the latency of <strong>sequential</strong> requests (e.g., getting a list of tokens, THEN getting prices for each).
+                      </p>
+                  </div>
+              </div>
+           </div>
+
+           <div>
+             <h3 className="text-sm uppercase tracking-wider text-emerald-400 font-bold mb-4 flex items-center gap-2"><Eye className="w-4 h-4" /> Data Source Transparency</h3>
+             <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+               <table className="w-full text-left border-collapse">
+                 <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Metric</th><th className="px-6 py-4 font-semibold">Data Type</th><th className="px-6 py-4 font-semibold">Reason / Source</th></tr></thead>
+                 <tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : r.type === "Calculated" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody>
+               </table>
+             </div>
+           </div>
+           
+           <div>
+             <h3 className="text-sm uppercase tracking-wider text-indigo-400 font-bold mb-4 flex items-center gap-2"><Info className="w-4 h-4" /> Competitive Benchmarking Parameters</h3>
+             <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+               <table className="w-full text-left border-collapse">
+                 <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Parameter</th><th className="px-6 py-4 font-semibold">Unit</th><th className="px-6 py-4 font-semibold">Data Source / Methodology</th><th className="px-6 py-4 font-semibold">Relevance to User</th></tr></thead>
+                 <tbody className="divide-y divide-slate-800 bg-slate-950/50">{DEFINITIONS_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-indigo-300 font-bold text-sm whitespace-nowrap">{r.param}</td><td className="px-6 py-4 text-slate-400 text-xs font-mono">{r.unit}</td><td className="px-6 py-4 text-slate-300 text-sm leading-relaxed">{r.source}</td><td className="px-6 py-4 text-slate-400 text-sm leading-relaxed italic border-l border-slate-800/50 bg-slate-900/30">{r.relevance}</td></tr>)}</tbody>
+               </table>
+             </div>
+           </div>
         </div>
       </div>
     </div>
@@ -84,27 +163,36 @@ const InspectorModal = ({ isOpen, onClose, data }) => {
     );
 };
 
+// --- MAIN APP COMPONENT ---
 export default function App() {
+  // Config State
   const [activeTab, setActiveTab] = useState('score');
   const [network, setNetwork] = useState('ethereum'); 
-  const [precision, setPrecision] = useState('standard');
-  const [requestType, setRequestType] = useState('light'); 
-  const [requestVolume, setRequestVolume] = useState(10);
+  const [precision] = useState('standard');
+  const [requestType] = useState('light'); 
+  const [requestVolume] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' });
   const [searchQuery, setSearchQuery] = useState('');
   const [useCase, setUseCase] = useState('general');
   const [auditStandard, setAuditStandard] = useState('erc20');
+  
+  // New State for Builder's Impact
+  const [targetWallet, setTargetWallet] = useState("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
 
+  // UI State
   const [visibleProviders, setVisibleProviders] = useState(INITIAL_DATA.map(d => d.name));
   const [tableFilters, setTableFilters] = useState({ archive: false, trace: false, certs: false });
   const [isDefinitionsOpen, setDefinitionsOpen] = useState(false);
   const [isLogExpanded, setLogExpanded] = useState(false);
   const [inspectorData, setInspectorData] = useState(null);
 
+  // Hook Executions
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
   const { contractData, isTestingContracts, runContractTest } = useSmartBenchmark(INITIAL_DATA, network);
+  const { results: portfolioResults, isRunning: isPortfolioRunning, runPortfolioTest, progress: portfolioProgress } = usePortfolioBenchmark();
   const officialStatuses = useStatusPage();
 
+  // Handlers
   const handleSmartTest = () => {
       const netConfig = NETWORK_CONFIG[network] || NETWORK_CONFIG.ethereum;
       const providersWithUrls = INITIAL_DATA.map(p => ({
@@ -216,7 +304,7 @@ export default function App() {
                         <h2 className="text-3xl font-bold text-white flex items-center gap-3">{winner.name}{winner.score > 0 && <Tooltip content={<div className="p-2 space-y-1"><div className="text-xs font-bold text-white border-b border-slate-700 pb-1 mb-1">Score Breakdown</div><div className="flex justify-between text-[10px] text-slate-300"><span>Latency</span><span>{(USE_CASE_PRESETS[useCase].weights.latency * 100).toFixed(0)}%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Reliability</span><span>{(USE_CASE_PRESETS[useCase].weights.reliability * 100).toFixed(0)}%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Throughput</span><span>{(USE_CASE_PRESETS[useCase].weights.batch * 100).toFixed(0)}%</span></div></div>}><span className="text-sm font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20 cursor-help flex items-center gap-1 hover:bg-indigo-500/20 transition-colors">Score: {winner.score} <HelpCircle className="w-3 h-3 opacity-50" /></span></Tooltip>}</h2>
                         <div className="mt-4 flex gap-4 text-xs text-slate-400"><div><span className="block text-white font-bold text-lg">{winner.latency}ms</span>Latency</div><div><span className="block text-white font-bold text-lg">{winner.batchLatency}ms</span>Batch (10x)</div><div><span className="block text-white font-bold text-lg">{winner.score}</span>CovalScore</div></div>
                      </div>
-                     <div className="w-40 h-40 relative"><ResponsiveContainer width="100%" height="100%"><RadarChart cx="50%" cy="50%" outerRadius="80%" data={[{ subject: 'Speed', A: winner.radar.A, fullMark: 100 }, { subject: 'Batch', A: winner.radar.B, fullMark: 100 }, { subject: 'Cost', A: winner.radar.C, fullMark: 100 }, { subject: 'Uptime', A: winner.radar.D, fullMark: 100 }, { subject: 'Secure', A: winner.radar.E, fullMark: 100 }]}><PolarGrid stroke="#334155" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} /><Radar name="Winner" dataKey="A" stroke="#818cf8" fill="#818cf8" fillOpacity={0.3} /></RadarChart></ResponsiveContainer></div>
+                     <div className="w-40 h-40 relative"><ResponsiveContainer width="100%" height="100%"><RadarChart cx="50%" cy="50%" outerRadius="80%" data={[{ subject: 'Speed', A: winner.radar.A, fullMark: 100 }, { subject: 'Batch', A: winner.radar.B, fullMark: 100 }, { subject: 'Cost', A: winner.radar.C, fullMark: 100 }, { subject: 'Uptime', A: winner.radar.D, fullMark: 100 }, { subject: 'Secure', A: winner.radar.E, fullMark: 100 }]}><PolarGrid stroke="#334155" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} /><RechartsRadar name="Winner" dataKey="A" stroke="#818cf8" fill="#818cf8" fillOpacity={0.3} /></RadarChart></ResponsiveContainer></div>
                   </div>
                   <GlassCard className="p-5 flex flex-col justify-center"><p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-1">Est. Cost</p><div className="text-2xl font-bold text-white">${(winner.calculatedCost || 0).toLocaleString()}</div><p className="text-[10px] text-slate-500 mt-1">Based on {requestVolume}M requests</p></GlassCard>
               </div>
@@ -292,6 +380,91 @@ export default function App() {
                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                               </Tooltip>
                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>{provider.name}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.latency > 0 ? <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span> : <span className="text-slate-600">-</span>}</td><td className="px-6 py-4"><Sparkline data={provider.history || []} color={provider.color} /></td><td className="px-6 py-4 text-slate-300 font-mono">{provider.batchLatency > 0 ? provider.batchLatency : '-'}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.gas > 0 ? provider.gas.toFixed(2) : '-'}</td><td className="px-6 py-4 text-slate-400 text-xs">{provider.coverage} Nets</td><td className="px-6 py-4"><div className="flex gap-1.5">{provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Support</div>}><Database className="w-4 h-4 text-indigo-400" /></Tooltip>}{provider.trace && <Tooltip content={<div className="p-2 text-xs">Trace/Debug API Support</div>}><FileCode className="w-4 h-4 text-emerald-400" /></Tooltip>}{(provider.certs || []).length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {(provider.certs || []).join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-amber-400" /></Tooltip>}</div></td><td className="px-6 py-4"><Tooltip content={<div className="p-2 text-xs whitespace-nowrap">{(provider.securityIssues || []).length > 0 ? `${(provider.securityIssues || []).length} Issues Found` : "All Checks Passed"}</div>}>{provider.securityScore === 100 ? <ShieldCheck className="w-4 h-4 text-emerald-400" /> : <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse" />}</Tooltip></td><td className="px-6 py-4 text-right text-xs text-slate-400">{provider.freeTier}</td></tr>))}</tbody></table></div></GlassCard></div>
+
+        {/* PORTFOLIO BENCHMARK SECTION (BUILDER'S IMPACT) */}
+        <div className="mt-8">
+            <GlassCard className="border-t-4 border-t-purple-500/50">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                    <div>
+                        {/* NEW FEATURE: Tooltip with Interaction
+                            - Hover: Shows summary
+                            - Click: Opens full docs modal
+                        */}
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Briefcase className="w-5 h-5 text-purple-400" />
+                            Builder's Impact Framework
+                            <Tooltip content={
+                                <div className="p-2 text-xs space-y-2">
+                                    <p>Measures "Time to Interactive" and "Developer Effort" (R.A.F.) instead of just node latency.</p>
+                                    <div className="font-bold text-purple-400 cursor-pointer hover:underline" onClick={() => setDefinitionsOpen(true)}>
+                                        Click here to read full Docs →
+                                    </div>
+                                </div>
+                            }>
+                                <Info 
+                                    className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer transition-colors" 
+                                    onClick={() => setDefinitionsOpen(true)}
+                                />
+                            </Tooltip>
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">Simulates a full "Wallet Portfolio" load to measure App Experience.</p>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        <div className="text-xs text-purple-300 animate-pulse font-mono mr-2">{portfolioProgress}</div>
+                        <input 
+                            type="text" 
+                            value={targetWallet} 
+                            onChange={(e) => setTargetWallet(e.target.value)}
+                            className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white w-64 font-mono focus:border-purple-500 outline-none transition-colors"
+                            placeholder="Enter Wallet Address"
+                        />
+                        <button 
+                            onClick={() => runPortfolioTest(targetWallet, network)} 
+                            disabled={isPortfolioRunning}
+                            className={`bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${isPortfolioRunning ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                            {isPortfolioRunning ? <RotateCw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                            {isPortfolioRunning ? 'Simulating...' : 'Run Scenario'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* RESULTS GRID */}
+                {portfolioResults && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {Object.values(portfolioResults).map((res) => (
+                            <div key={res.provider} className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 relative overflow-hidden group hover:border-slate-700 transition-all">
+                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <h1 className="text-6xl font-bold text-white tracking-tighter">{res.metrics.builder_impact_rating}</h1>
+                                </div>
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="font-bold text-slate-200">{res.provider}</span>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                            res.metrics.builder_impact_rating === 'S' || res.metrics.builder_impact_rating === 'A+' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                                            res.metrics.builder_impact_rating === 'F' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                        }`}>Grade: {res.metrics.builder_impact_rating}</span>
+                                    </div>
+                                    <div className="space-y-2 font-mono text-xs text-slate-400">
+                                        <div className="flex justify-between border-b border-white/5 pb-1"><span>Interactive Time</span><span className="text-white">{res.metrics.time_to_interactive_ms}ms</span></div>
+                                        <div className="flex justify-between border-b border-white/5 pb-1"><span>Requests (RAF)</span><span className="text-white">{res.metrics.requests_sent}</span></div>
+                                        <div className="flex justify-between border-b border-white/5 pb-1 items-center">
+                                            <span>Data Richness</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px]">{res.metrics.data_richness_score}%</span>
+                                                <div className="w-12 bg-slate-800 rounded-full h-1"><div className={`h-1 rounded-full ${res.metrics.data_richness_score > 80 ? 'bg-emerald-500' : 'bg-purple-500'}`} style={{width: `${res.metrics.data_richness_score}%`}}></div></div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between pt-1"><span>Est. Cost</span><span className="text-slate-500">{res.metrics.estimated_cost_units} units</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </GlassCard>
+        </div>
 
         {/* AUDIT SECTION */}
         <div className="mt-8">

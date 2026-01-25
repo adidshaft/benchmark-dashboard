@@ -50,3 +50,28 @@ export const TRANSPARENCY_DATA = [
     { metric: "Smart Contract Read", type: "Real-Time", reason: "Performs actual eth_call to verified Token Contracts on-chain." },
     { metric: "Chain Coverage", type: "Static", reason: "Hardcoded from documentation." },
 ];
+
+export const BUILDER_METRICS = {
+    complexity: {
+        LOW: 1,      // SDK/Unified API (1-2 lines of code)
+        MEDIUM: 3,   // RPC with some helper methods
+        HIGH: 5      // Raw RPC, manual ABI decoding, multiple loops
+    },
+    costs: {
+        // Standardized to Micro-USD per request/unit for comparison
+        transaction_item: 10,   // Covalent (~$0.00001 per item)
+        compute_unit: 0.2,      // Alchemy (~$0.20 per 1M CUs -> 0.0002 per CU)
+        credit_mobula: 50,      // Mobula (Approx proxy)
+        request_flat: 350,      // Codex/Defined ($350/1M -> 0.00035 per req)
+        credit_qn: 0.1,         // QuickNode
+        credit_infura: 0.15     // Infura
+    }
+};
+
+// Top 20 Token Contracts for "Waterfall" simulation (Ethereum)
+export const SIMULATION_TOKENS = [
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT
+    "0xB8c77482e45F1F44dE1745F52C74426C631bDD52", // BNB
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC
+    // ... (In a real app, this list would be longer. We use these for the loop)
+];
