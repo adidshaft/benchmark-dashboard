@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RadarShape
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert, Target, Download, Box, AlertTriangle, Check, Briefcase, Sparkles
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert, Target, Download, Box, AlertTriangle, Check, Briefcase, Sparkles, Radio
 } from 'lucide-react';
 
 import { useBenchmark, NETWORK_CONFIG } from './hooks/useBenchmark';
 import { useSmartBenchmark } from './hooks/useSmartBenchmark';
+import { useStatusPage } from './hooks/useStatusPage';
 
 // --- DATA & CONFIG ---
 const INITIAL_DATA = [
@@ -53,6 +54,12 @@ const DEFINITIONS_DATA = [
   { param: "Security Score", unit: "0-100", source: "HTTPS & Header Leak analysis.", relevance: "Infrastructure hardening level." },
   { param: "Archive Access", unit: "Boolean", source: "Live fetch of Genesis Block (#1).", relevance: "Verifies deep history access." },
   { param: "Execution Audit", unit: "State Check", source: "Verifies eth_call on ERC20/721/1155.", relevance: "Ensures provider can read actual smart contract state." },
+  { param: "P99 Latency (Stress)", unit: "ms", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
+  { param: "Chain Support Count", unit: "Integer", source: "Count of Mainnet/Testnet networks listed in documentation.", relevance: "Filters providers for multi-chain projects vs. single-chain specialists." },
+  { param: "Free Tier Cap", unit: "Requests/Mo", source: "Normalized standard eth_call equivalent.", relevance: "The 'hook' for startups; determines how long they can build for free." },
+  { param: "Paid Entry Price", unit: "USD/Mo", source: "Cost of the cheapest paid plan.", relevance: "Important for projects graduating from the hackathon phase." },
+  { param: "Historical Uptime", unit: "%", source: "Session success rate (Real-time approximation).", relevance: "The baseline requirement for any production-grade application." },
+  { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling.", relevance: "Prevents UI bugs where a user's balance flickers between blocks." }
 ];
 
 const TRANSPARENCY_DATA = [
@@ -71,10 +78,11 @@ const METRIC_DEFINITIONS = {
 };
 
 // --- COMPONENTS ---
+// FIXED: Increased z-index to 99999 to properly overlay tables
 const Tooltip = ({ content, children }) => (
-  <div className="group relative flex items-center justify-center z-[50]">
+  <div className="group relative flex items-center justify-center z-[99999]">
     {children}
-    <div className="absolute top-full mt-3 px-4 py-3 bg-[#020617] border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[9999]">
+    <div className="absolute top-full mt-3 px-4 py-3 bg-[#020617] border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[99999]">
       {content}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-[1px] border-4 border-transparent border-b-slate-700"></div>
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-[#020617]"></div>
@@ -143,6 +151,7 @@ const Sparkline = ({ data = [], color }) => {
   return <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" /></svg></div>;
 };
 
+// FIXED: Use overflow-visible instead of hidden on GlassCard
 const GlassCard = ({ children, className = "" }) => <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>;
 const Badge = ({ children, color = "indigo" }) => <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border bg-${color}-500/10 text-${color}-400 border-${color}-500/20`}>{children}</span>;
 
@@ -178,6 +187,7 @@ export default function App() {
 
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
   const { contractData, isTestingContracts, runContractTest } = useSmartBenchmark(INITIAL_DATA, network);
+  const officialStatuses = useStatusPage();
 
   const consensusValue = useMemo(() => getConsensus(contractData), [contractData]);
 
@@ -211,10 +221,11 @@ export default function App() {
 
       return { 
           ...p, calculatedCost, score, 
-          radar: { A: latencyScore, B: batchScore, C: costScore, D: reliabilityScore, E: p.securityScore } 
+          radar: { A: latencyScore, B: batchScore, C: costScore, D: reliabilityScore, E: p.securityScore },
+          officialStatus: officialStatuses[p.name]
       };
     });
-  }, [benchmarkData, requestVolume, useCase]);
+  }, [benchmarkData, requestVolume, useCase, officialStatuses]);
 
   const sortedAndFilteredData = useMemo(() => {
     let data = processedData.filter(d => visibleProviders.includes(d.name) && d.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -265,7 +276,6 @@ export default function App() {
                   <div className={`flex items-center gap-2 text-xs font-medium text-slate-500 border border-white/5 px-3 py-1.5 rounded-full bg-white/[0.02]`}><div className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>{isRunning ? 'Benchmarking...' : 'System Operational'}</div>
               </div>
           </div>
-          {/* NEW: FEATURE ANNOUNCEMENT BANNER */}
           <div className="bg-indigo-500/10 border-b border-indigo-500/20 py-1.5 flex items-center justify-center gap-2">
               <Sparkles className="w-3 h-3 text-indigo-400" />
               <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-300">New Feature: Execution Layer Audits now available for ERC20 & ERC721</span>
@@ -274,7 +284,6 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-           {/* LEFT COLUMN */}
            <div className="lg:col-span-3 space-y-4">
               <GlassCard className="p-5 space-y-6 border-t-4 border-t-indigo-500/50">
                   <div>
@@ -290,17 +299,15 @@ export default function App() {
               </GlassCard>
            </div>
 
-           {/* RIGHT COLUMN */}
            <div className="lg:col-span-9 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* WINNER CARD */}
                   <div className="relative rounded-2xl border border-white/10 p-5 md:col-span-2 flex items-center justify-between overflow-visible bg-gradient-to-br from-slate-900 to-slate-950">
                      <div className="relative z-10 flex-1">
                         <p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-2">Top Performer ({USE_CASE_PRESETS[useCase].label})</p>
                         <h2 className="text-3xl font-bold text-white flex items-center gap-3">{winner.name}{winner.score > 0 && <Tooltip content={<div className="p-2 space-y-1"><div className="text-xs font-bold text-white border-b border-slate-700 pb-1 mb-1">Score Breakdown</div><div className="flex justify-between text-[10px] text-slate-300"><span>Latency</span><span>{(USE_CASE_PRESETS[useCase].weights.latency * 100).toFixed(0)}%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Reliability</span><span>{(USE_CASE_PRESETS[useCase].weights.reliability * 100).toFixed(0)}%</span></div><div className="flex justify-between text-[10px] text-slate-300"><span>Throughput</span><span>{(USE_CASE_PRESETS[useCase].weights.batch * 100).toFixed(0)}%</span></div></div>}><span className="text-sm font-mono text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20 cursor-help flex items-center gap-1 hover:bg-indigo-500/20 transition-colors">Score: {winner.score} <HelpCircle className="w-3 h-3 opacity-50" /></span></Tooltip>}</h2>
                         <div className="mt-4 flex gap-4 text-xs text-slate-400"><div><span className="block text-white font-bold text-lg">{winner.latency}ms</span>Latency</div><div><span className="block text-white font-bold text-lg">{winner.batchLatency}ms</span>Batch (10x)</div><div><span className="block text-white font-bold text-lg">{winner.score}</span>CovalScore</div></div>
                      </div>
-                     <div className="w-40 h-40 relative"><ResponsiveContainer width="100%" height="100%"><RadarChart cx="50%" cy="50%" outerRadius="80%" data={[{ subject: 'Speed', A: winner.radar.A, fullMark: 100 }, { subject: 'Batch', A: winner.radar.B, fullMark: 100 }, { subject: 'Cost', A: winner.radar.C, fullMark: 100 }, { subject: 'Uptime', A: winner.radar.D, fullMark: 100 }, { subject: 'Secure', A: winner.radar.E, fullMark: 100 }]}><PolarGrid stroke="#334155" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} /><RadarShape name="Winner" dataKey="A" stroke="#818cf8" fill="#818cf8" fillOpacity={0.3} /></RadarChart></ResponsiveContainer></div>
+                     <div className="w-40 h-40 relative"><ResponsiveContainer width="100%" height="100%"><RadarChart cx="50%" cy="50%" outerRadius="80%" data={[{ subject: 'Speed', A: winner.radar.A, fullMark: 100 }, { subject: 'Batch', A: winner.radar.B, fullMark: 100 }, { subject: 'Cost', A: winner.radar.C, fullMark: 100 }, { subject: 'Uptime', A: winner.radar.D, fullMark: 100 }, { subject: 'Secure', A: winner.radar.E, fullMark: 100 }]}><PolarGrid stroke="#334155" /><PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} /><Radar name="Winner" dataKey="A" stroke="#818cf8" fill="#818cf8" fillOpacity={0.3} /></RadarChart></ResponsiveContainer></div>
                   </div>
                   <GlassCard className="p-5 flex flex-col justify-center"><p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-1">Est. Cost</p><div className="text-2xl font-bold text-white">${(winner.calculatedCost || 0).toLocaleString()}</div><p className="text-[10px] text-slate-500 mt-1">Based on {requestVolume}M requests</p></GlassCard>
               </div>
@@ -329,10 +336,26 @@ export default function App() {
            </div>
         </div>
 
-        {/* ENTERPRISE METRICS TABLE */}
-        <div className="mt-8"><GlassCard className="p-0 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead><tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider"><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Provider <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>P50 <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Stability</th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('batchLatency')}>Batch (10x) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('gas')}>Gas (Gwei) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('coverage')}>Chains <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Capabilities</th><th className="px-6 py-4">Security</th><th className="px-6 py-4 text-right cursor-pointer hover:text-white" onClick={() => handleSort('freeTier')}>Free Tier <ArrowUpDown className="w-3 h-3 inline ml-1" /></th></tr></thead><tbody className="divide-y divide-white/5">{sortedAndFilteredData.map((provider) => (<tr key={provider.name} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setInspectorData(provider)}><td className="px-6 py-4 font-medium text-white flex items-center gap-3"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>{provider.name}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.latency > 0 ? <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span> : <span className="text-slate-600">-</span>}</td><td className="px-6 py-4"><Sparkline data={provider.history || []} color={provider.color} /></td><td className="px-6 py-4 text-slate-300 font-mono">{provider.batchLatency > 0 ? provider.batchLatency : '-'}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.gas > 0 ? provider.gas.toFixed(2) : '-'}</td><td className="px-6 py-4 text-slate-400 text-xs">{provider.coverage} Nets</td><td className="px-6 py-4"><div className="flex gap-1.5">{provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Support</div>}><Database className="w-4 h-4 text-indigo-400" /></Tooltip>}{provider.trace && <Tooltip content={<div className="p-2 text-xs">Trace/Debug API Support</div>}><FileCode className="w-4 h-4 text-emerald-400" /></Tooltip>}{(provider.certs || []).length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {(provider.certs || []).join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-amber-400" /></Tooltip>}</div></td><td className="px-6 py-4"><Tooltip content={<div className="p-2 text-xs whitespace-nowrap">{(provider.securityIssues || []).length > 0 ? `${(provider.securityIssues || []).length} Issues Found` : "All Checks Passed"}</div>}>{provider.securityScore === 100 ? <ShieldCheck className="w-4 h-4 text-emerald-400" /> : <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse" />}</Tooltip></td><td className="px-6 py-4 text-right text-xs text-slate-400">{provider.freeTier}</td></tr>))}</tbody></table></div></GlassCard></div>
+        {/* FIXED: 'overflow-visible' allows the Tooltip to spill out */}
+        <div className="mt-8">
+            <GlassCard className="p-0 overflow-visible">
+                <div className="overflow-visible">
+                    <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider"><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Provider <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>P50 <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Stability</th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('batchLatency')}>Batch (10x) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('gas')}>Gas (Gwei) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('coverage')}>Chains <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Capabilities</th><th className="px-6 py-4">Security</th><th className="px-6 py-4 text-right cursor-pointer hover:text-white" onClick={() => handleSort('freeTier')}>Free Tier <ArrowUpDown className="w-3 h-3 inline ml-1" /></th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {sortedAndFilteredData.map((provider) => (
+                        <tr key={provider.name} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setInspectorData(provider)}>
+                          <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
+                              {/* STATUS INDICATOR (Always Visible) */}
+                              <Tooltip content={provider.officialStatus?.description || "All Systems Operational"}>
+                                  {provider.officialStatus?.indicator === 'minor' ? <AlertTriangle className="w-3 h-3 text-amber-500 animate-pulse" /> : 
+                                   provider.officialStatus?.indicator === 'major' || provider.officialStatus?.indicator === 'critical' ? <ShieldAlert className="w-3 h-3 text-red-500 animate-bounce" /> : 
+                                   <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                              </Tooltip>
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>{provider.name}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.latency > 0 ? <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span> : <span className="text-slate-600">-</span>}</td><td className="px-6 py-4"><Sparkline data={provider.history || []} color={provider.color} /></td><td className="px-6 py-4 text-slate-300 font-mono">{provider.batchLatency > 0 ? provider.batchLatency : '-'}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.gas > 0 ? provider.gas.toFixed(2) : '-'}</td><td className="px-6 py-4 text-slate-400 text-xs">{provider.coverage} Nets</td><td className="px-6 py-4"><div className="flex gap-1.5">{provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Support</div>}><Database className="w-4 h-4 text-indigo-400" /></Tooltip>}{provider.trace && <Tooltip content={<div className="p-2 text-xs">Trace/Debug API Support</div>}><FileCode className="w-4 h-4 text-emerald-400" /></Tooltip>}{(provider.certs || []).length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {(provider.certs || []).join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-amber-400" /></Tooltip>}</div></td><td className="px-6 py-4"><Tooltip content={<div className="p-2 text-xs whitespace-nowrap">{(provider.securityIssues || []).length > 0 ? `${(provider.securityIssues || []).length} Issues Found` : "All Checks Passed"}</div>}>{provider.securityScore === 100 ? <ShieldCheck className="w-4 h-4 text-emerald-400" /> : <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse" />}</Tooltip></td><td className="px-6 py-4 text-right text-xs text-slate-400">{provider.freeTier}</td></tr>))}</tbody></table></div></GlassCard></div>
 
-        {/* SMART CONTRACT AUDIT SECTION */}
         <div className="mt-8">
             <div className="flex items-center justify-between mb-4 px-2">
                 <div className="flex items-center gap-4"><div className="flex items-center gap-2"><Box className="w-4 h-4 text-slate-400" /><h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Execution Layer Audit</h3></div><div className="flex items-center bg-slate-900 border border-slate-700 rounded-lg p-1 gap-1">{['erc20', 'erc721', 'erc1155'].map(type => (<button key={type} onClick={() => setAuditStandard(type)} className={`px-2 py-1 text-[10px] uppercase font-bold rounded transition-all ${auditStandard === type ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{type}</button>))}</div></div>
