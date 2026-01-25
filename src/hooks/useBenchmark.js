@@ -5,7 +5,7 @@ export const NETWORK_CONFIG = {
     id: 1,
     Alchemy: { url: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
     Infura: { url: `https://mainnet.infura.io/v3/${import.meta.env.VITE_INFURA_KEY}`, type: 'RPC' },
-    QuickNode: { url: `https://shiny-long-dew.quiknode.pro/${import.meta.env.VITE_QUICKNODE_KEY}/`, type: 'RPC' },
+    QuickNode: { url: `https://falling-patient-meadow.quiknode.pro/${import.meta.env.VITE_QUICKNODE_KEY}/`, type: 'RPC' },
     Covalent: { url: `https://api.covalenthq.com/v1/1/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
     Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Ethereum', type: 'REST', authHeader: true },
     Codex: { url: null, type: 'REST' }
