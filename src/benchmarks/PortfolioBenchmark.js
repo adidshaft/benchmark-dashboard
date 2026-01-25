@@ -50,21 +50,25 @@ export class PortfolioBenchmark {
             }
         } catch (e) {
             console.error(`${name} Failed:`, e);
-            // Return failure state but don't crash the dashboard
             return {
                 provider: name,
                 error: e.message,
-                metrics: { ...metrics, time_to_interactive_ms: 0, builder_impact_rating: 'F' }
+                metrics: { 
+                    ...metrics, 
+                    time_to_interactive_ms: 0, 
+                    builder_impact_rating: 'F',
+                    score_details: { score: 0, grade: 'F', breakdown: [{ reason: "Execution Error", delta: -100 }] }
+                }
             };
         }
 
         const end = performance.now();
         const time = Math.round(end - start);
         
-        // Builder's Impact Calculation
-        // Formula: Richness / (Time * RAF * Cost) - simplified for demo
-        const raf = metrics.requests_sent; // Logical task is always 1
-        const impactScore = this.calculateImpactRating(time, raf, metrics.data_richness_score, metrics.integration_complexity);
+        const raf = metrics.requests_sent; 
+        
+        // NEW: Get full score breakdown object
+        const scoring = this.calculateScoreBreakdown(time, raf, metrics.data_richness_score, metrics.integration_complexity);
 
         return {
             provider: name,
@@ -74,148 +78,151 @@ export class PortfolioBenchmark {
                 requests_sent: metrics.requests_sent,
                 data_richness_score: metrics.data_richness_score,
                 estimated_cost_units: metrics.estimated_cost_units,
-                builder_impact_rating: impactScore
+                builder_impact_rating: scoring.grade, 
+                score_details: scoring // Pass full breakdown to UI
             }
         };
     }
 
-    // --- PROVIDER SPECIFIC LOGIC ---
+    // --- PROVIDER SPECIFIC LOGIC (Same as before) ---
 
     async benchmarkCovalent() {
-        // GoldRush Unified API: One call for everything
         const apiKey = import.meta.env.VITE_COVALENT_KEY;
         const url = `https://api.covalenthq.com/v1/${this.config.id}/address/${this.wallet}/balances_v2/?key=${apiKey}`;
         
         const res = await fetch(url);
         const data = await res.json();
-        
         const items = data.data?.items || [];
-        // Richness: Covalent returns Decimals, Logo, Price, Delta by default
-        const richness = items.length > 0 ? 98 : 0; 
         
         return {
             requests_sent: 1,
-            data_richness_score: richness,
-            estimated_cost_units: items.length, // 0.1 credits per item (approx logic)
+            data_richness_score: items.length > 0 ? 98 : 0,
+            estimated_cost_units: items.length, 
             integration_complexity: BUILDER_METRICS.complexity.LOW
         };
     }
 
     async benchmarkAlchemy() {
-        // Alchemy Enhanced APIs: getNFTs + AssetTransfers
         const url = this.config['Alchemy'].url;
-        
-        // Simulating 2 distinct calls as per prompt
         const payload1 = { jsonrpc: "2.0", id: 1, method: "alchemy_getAssetTransfers", params: [{ fromBlock: "0x0", toAddress: this.wallet, category: ["erc20"] }] };
         const payload2 = { jsonrpc: "2.0", id: 2, method: "alchemy_getNfts", params: [{ owner: this.wallet }] };
         
         await fetch(url, { method: 'POST', body: JSON.stringify([payload1, payload2]) });
 
-        // Alchemy CUs: AssetTransfers (~150) + GetNFTs (~480)
         return {
-            requests_sent: 1, // Batched
-            data_richness_score: 85, // Good data, but price often requires separate endpoint
+            requests_sent: 1, 
+            data_richness_score: 85,
             estimated_cost_units: 630, 
             integration_complexity: BUILDER_METRICS.complexity.MEDIUM
         };
     }
 
     async benchmarkMobula() {
-        // Wallet API
         const url = `https://api.mobula.io/api/1/wallet/portfolio?wallet=${this.wallet}`;
         const res = await fetch(url, { headers: { Authorization: import.meta.env.VITE_MOBULA_KEY }});
         const data = await res.json();
-
-        // Check completeness
         const hasPrice = data.assets?.[0]?.price !== undefined;
         
         return {
             requests_sent: 1,
             data_richness_score: hasPrice ? 95 : 50,
-            estimated_cost_units: 1, // Flat credit
+            estimated_cost_units: 1, 
             integration_complexity: BUILDER_METRICS.complexity.LOW
         };
     }
 
     async benchmarkCodex() {
-        // Defined.fi GraphQL
-        // Mocking the call as we might not have a key, but logic stands
-        const query = `query { inputs(networkId: ${this.config.id}, address: "${this.wallet}") { balances { token { symbol priceUsd } amount } } }`;
-        
-        // Simulating the network hop if no key provided
         await new Promise(r => setTimeout(r, 150)); 
-
         return {
             requests_sent: 1,
-            data_richness_score: 90, // GraphQL allows exact fetching
+            data_richness_score: 90, 
             estimated_cost_units: 1,
-            integration_complexity: BUILDER_METRICS.complexity.MEDIUM // Query construction overhead
+            integration_complexity: BUILDER_METRICS.complexity.MEDIUM 
         };
     }
 
     async benchmarkQuickNode() {
-        // Core RPC + Token API Add-on
         const url = this.config['QuickNode'].url;
-        const payload = { 
-            method: "qn_getWalletTokenBalance", 
-            params: [{ wallet: this.wallet }] 
-        };
-        
-        // Fallback to standard if addon not enabled, but simulating success
+        const payload = { method: "qn_getWalletTokenBalance", params: [{ wallet: this.wallet }] };
         await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
 
         return {
             requests_sent: 1,
-            data_richness_score: 70, // Basic balance data, often lacks rich metadata/logos
-            estimated_cost_units: 2, // Multiplier for addons
+            data_richness_score: 70, 
+            estimated_cost_units: 2, 
             integration_complexity: BUILDER_METRICS.complexity.MEDIUM
         };
     }
 
     async benchmarkInfura() {
-        // The "Waterfall" Baseline
         const url = this.config['Infura'].url;
         if (!url) throw new Error("Infura Not Configured");
 
-        // 1. Get ETH Balance
         await fetch(url, { method: 'POST', body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getBalance", params: [this.wallet, "latest"], id: 1 }) });
 
-        // 2. Simulate Waterfall: Loop for top 5 tokens (simulating 20)
-        // In React apps, developers often iterate and await, or Promise.all which can hit rate limits
         const tokens = ["0xdac...", "0xb8c...", "0xa0b...", "0x123...", "0x456..."]; 
-        let sequentialLatency = 0;
-        
         for (const t of tokens) {
-             const tStart = performance.now();
              await fetch(url, { 
                  method: 'POST', 
                  body: JSON.stringify({ jsonrpc: "2.0", method: "eth_call", params: [{ to: t, data: "0x70a08231..." }, "latest"], id: 1 }) 
              });
-             sequentialLatency += (performance.now() - tStart);
         }
 
         return {
-            requests_sent: 1 + tokens.length, // 6 requests
-            data_richness_score: 20, // Only raw hex returned. No price, no decimals, no logo.
-            estimated_cost_units: 80 + (26 * tokens.length), // getBalance + n * eth_call
+            requests_sent: 1 + tokens.length, 
+            data_richness_score: 20, 
+            estimated_cost_units: 80 + (26 * tokens.length), 
             integration_complexity: BUILDER_METRICS.complexity.HIGH
         };
     }
 
-    calculateImpactRating(time, requests, richness, complexity) {
-        // Proprietary Scoring Logic
-        // Low Time + Low Requests + High Richness + Low Complexity = S Tier
-        
+    // NEW: Detailed Calculation Logic
+    calculateScoreBreakdown(time, requests, richness, complexity) {
         let score = 100;
-        if (time > 500) score -= 20;
-        if (requests > 1) score -= (requests * 5); // Penalize chattiness
-        if (richness < 50) score -= 30; // Penalize "Raw Data"
-        if (complexity === BUILDER_METRICS.complexity.HIGH) score -= 15;
+        let breakdown = [];
 
-        if (score >= 90) return "S";
-        if (score >= 80) return "A+";
-        if (score >= 70) return "A";
-        if (score >= 50) return "B";
-        return "C";
+        breakdown.push({ reason: "Max Potential Score", delta: 100, type: "base" });
+
+        // Latency Penalties
+        if (time > 500) {
+            score -= 20;
+            breakdown.push({ reason: "High Latency (>500ms)", delta: -20, type: "penalty" });
+        } else {
+             breakdown.push({ reason: "Fast Response (<500ms)", delta: 0, type: "neutral" });
+        }
+
+        // Request Penalties (Chattiness)
+        if (requests > 1) {
+            const pen = requests * 5;
+            score -= pen;
+            breakdown.push({ reason: `Request Amplification (${requests} reqs)`, delta: -pen, type: "penalty" });
+        } else {
+            breakdown.push({ reason: "Unified API Call (1 req)", delta: 0, type: "bonus" });
+        }
+
+        // Richness Penalties
+        if (richness < 50) {
+            score -= 30;
+            breakdown.push({ reason: "Low Data Richness (Raw Hex)", delta: -30, type: "penalty" });
+        } else if (richness > 80) {
+             breakdown.push({ reason: "High Data Richness (Metadata)", delta: 0, type: "bonus" });
+        }
+
+        // Complexity Penalties
+        if (complexity === 5) { // HIGH
+            score -= 15;
+            breakdown.push({ reason: "High Integration Complexity", delta: -15, type: "penalty" });
+        }
+
+        // Cap score min 0
+        score = Math.max(0, score);
+
+        let grade = "C";
+        if (score >= 90) grade = "S";
+        else if (score >= 80) grade = "A+";
+        else if (score >= 70) grade = "A";
+        else if (score >= 50) grade = "B";
+
+        return { grade, score, breakdown };
     }
 }

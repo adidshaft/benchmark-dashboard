@@ -7,7 +7,7 @@ import {
   Zap, Globe, CheckCircle2, Play, RotateCw, BookOpen, X, Eye, ChevronDown, 
   Terminal, Maximize2, HelpCircle, ShieldAlert, Download, Box, AlertTriangle, 
   Check, Briefcase, Search, Hexagon, Sparkles, Activity, Gauge, DollarSign, 
-  ShieldCheck, Database, FileCode, ArrowUpDown, Info // <--- FIXED: Added Info Import
+  ShieldCheck, Database, FileCode, ArrowUpDown, Info 
 } from 'lucide-react';
 
 // --- CUSTOM HOOKS ---
@@ -74,7 +74,6 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
         </div>
         <div className="overflow-y-auto p-8 space-y-10">
            
-           {/* NEW SECTION: Builder's Impact Framework */}
            <div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-6">
               <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-purple-400" /> 
@@ -163,6 +162,65 @@ const InspectorModal = ({ isOpen, onClose, data }) => {
     );
 };
 
+const PortfolioInspectorModal = ({ isOpen, onClose, data }) => {
+    if (!isOpen || !data) return null;
+    const { metrics, provider } = data;
+    const { score_details } = metrics;
+    
+    const getGradeColor = (grade) => {
+        if(grade === 'S' || grade === 'A+') return 'text-emerald-400';
+        if(grade === 'F') return 'text-red-400';
+        return 'text-indigo-400';
+    };
+
+    return (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
+         <div className="bg-[#0f172a] border border-slate-700 w-full max-w-lg rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 relative">
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            <div className="p-6 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+                <div>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Impact Analysis</div>
+                    <h2 className="text-2xl font-bold text-white">{provider} Report Card</h2>
+                </div>
+                <div className={`text-5xl font-black ${getGradeColor(score_details.grade)}`}>{score_details.grade}</div>
+            </div>
+            <div className="p-6 space-y-6">
+                <div className="flex justify-between items-end">
+                    <div className="text-sm text-slate-400">Final Impact Score</div>
+                    <div className="text-4xl font-mono font-bold text-white">{score_details.score}<span className="text-sm text-slate-600 ml-1">/100</span></div>
+                </div>
+                
+                <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Scoring Breakdown</div>
+                    <div className="bg-slate-950 rounded-lg p-2 border border-slate-800 space-y-1">
+                        {score_details.breakdown && score_details.breakdown.map((item, i) => (
+                            <div key={i} className="flex justify-between items-center text-sm p-1.5 border-b border-slate-800/50 last:border-0">
+                                <span className="text-slate-300">{item.reason}</span>
+                                <span className={`font-mono font-bold ${item.delta > 0 ? 'text-emerald-400' : item.delta < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                                    {item.delta > 0 ? '+' : ''}{item.delta}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                     <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase">Interactive Time</div>
+                        <div className="text-lg font-bold text-white">{metrics.time_to_interactive_ms}ms</div>
+                     </div>
+                     <div className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                        <div className="text-[10px] text-slate-500 uppercase">Complexity</div>
+                        <div className="text-lg font-bold text-white">{metrics.score_details.breakdown.find(x => x.reason.includes("Integration")) ? "High" : "Low"}</div>
+                     </div>
+                </div>
+            </div>
+         </div>
+      </div>
+    );
+};
+
+
 // --- MAIN APP COMPONENT ---
 export default function App() {
   // Config State
@@ -185,6 +243,7 @@ export default function App() {
   const [isDefinitionsOpen, setDefinitionsOpen] = useState(false);
   const [isLogExpanded, setLogExpanded] = useState(false);
   const [inspectorData, setInspectorData] = useState(null);
+  const [portfolioInspectorData, setPortfolioInspectorData] = useState(null);
 
   // Hook Executions
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
@@ -262,6 +321,8 @@ export default function App() {
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none"><div className="absolute top-[-20%] left-[20%] w-[800px] h-[800px] bg-indigo-500/5 rounded-full blur-[120px]" /><div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-600/5 rounded-full blur-[100px]" /></div>
       <DefinitionsModal isOpen={isDefinitionsOpen} onClose={() => setDefinitionsOpen(false)} />
       <InspectorModal isOpen={!!inspectorData} onClose={() => setInspectorData(null)} data={inspectorData} />
+      <PortfolioInspectorModal isOpen={!!portfolioInspectorData} onClose={() => setPortfolioInspectorData(null)} data={portfolioInspectorData} />
+
       {isLogExpanded && <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm"><div className="bg-slate-950 border border-slate-700 w-full max-w-5xl h-[80vh] rounded-2xl flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200"><div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50"><div className="flex items-center gap-2 text-emerald-400 font-mono text-sm uppercase tracking-wider"><Terminal className="w-4 h-4" /> Live Execution Log</div><button onClick={() => setLogExpanded(false)} className="p-2 hover:bg-slate-800 rounded text-slate-400 hover:text-white"><X className="w-5 h-5"/></button></div><div className="flex-1 overflow-auto p-6 font-mono text-xs text-slate-300 space-y-2">{logs.map((log, i) => <div key={i} className="border-b border-white/5 pb-1 border-dashed">{log}</div>)}</div></div></div>}
       
       <nav className="border-b border-white/5 bg-[#020617]/80 backdrop-blur-xl sticky top-0 z-50">
@@ -433,7 +494,11 @@ export default function App() {
                 {portfolioResults && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         {Object.values(portfolioResults).map((res) => (
-                            <div key={res.provider} className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 relative overflow-hidden group hover:border-slate-700 transition-all">
+                            <div 
+                                key={res.provider} 
+                                onClick={() => setPortfolioInspectorData(res)} // <-- NEW: Click to open detail modal
+                                className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 relative overflow-hidden group hover:border-purple-500/50 hover:bg-slate-900 transition-all cursor-pointer"
+                            >
                                 <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <h1 className="text-6xl font-bold text-white tracking-tighter">{res.metrics.builder_impact_rating}</h1>
                                 </div>
@@ -457,6 +522,9 @@ export default function App() {
                                             </div>
                                         </div>
                                         <div className="flex justify-between pt-1"><span>Est. Cost</span><span className="text-slate-500">{res.metrics.estimated_cost_units} units</span></div>
+                                    </div>
+                                    <div className="mt-3 text-[10px] text-center text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity uppercase font-bold tracking-wider">
+                                        Click to view analysis
                                     </div>
                                 </div>
                             </div>
