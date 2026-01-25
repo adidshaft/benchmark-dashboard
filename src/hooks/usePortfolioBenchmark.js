@@ -5,16 +5,21 @@ export const usePortfolioBenchmark = () => {
     const [results, setResults] = useState(null);
     const [isRunning, setIsRunning] = useState(false);
     const [progress, setProgress] = useState("");
+    const [logs, setLogs] = useState([]); // NEW: Logs State
 
     const runPortfolioTest = useCallback(async (walletAddress, chainId) => {
         setIsRunning(true);
         setResults(null);
+        setLogs([]); // Reset logs
         setProgress("Initializing Builder's Impact Framework...");
 
         try {
-            const engine = new PortfolioBenchmark(walletAddress, chainId);
+            // NEW: Pass a callback to capture logs from the class
+            const engine = new PortfolioBenchmark(walletAddress, chainId, (msg) => {
+                const timestamp = new Date().toLocaleTimeString().split(' ')[0];
+                setLogs(prev => [...prev, `[${timestamp}] ${msg}`]);
+            });
             
-            // In a real scenario we might emit events, for now we just wait
             setProgress("Simulating Wallet Load & Fetching Data...");
             const data = await engine.run();
             
@@ -28,5 +33,5 @@ export const usePortfolioBenchmark = () => {
         }
     }, []);
 
-    return { results, isRunning, progress, runPortfolioTest };
+    return { results, isRunning, progress, runPortfolioTest, logs }; // Return logs
 };

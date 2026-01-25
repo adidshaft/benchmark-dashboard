@@ -21,7 +21,7 @@ import MetricExplanation from './components/MetricExplanation';
 import Tooltip from './components/Tooltip';
 import { 
   INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, 
-  DEFINITIONS_DATA, TRANSPARENCY_DATA 
+  DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_IMPACT_DOCS 
 } from './config/constants';
 
 // --- UI HELPERS ---
@@ -74,45 +74,45 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
         </div>
         <div className="overflow-y-auto p-8 space-y-10">
            
+           {/* UPDATED: Hybrid Layout for Builder's Impact */}
            <div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-6">
               <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-purple-400" /> 
-                  The Builder's Impact Framework
+                  {BUILDER_IMPACT_DOCS.title}
               </h3>
-              <p className="text-sm text-slate-300 mb-6 leading-relaxed">
-                  Traditional benchmarks only measure "Node Performance" (ping latency). This is often misleading because building a real dApp requires complex data (Tokens, Prices, Images) that raw nodes cannot provide efficiently. 
-                  <br/><br/>
-                  This framework simulates a real-world scenario: <strong>"Loading a User's Portfolio"</strong>, to measure the actual experience of a developer building on these platforms.
+              <p className="text-sm text-slate-300 mb-6 border-l-2 border-purple-500 pl-4 italic">
+                  {BUILDER_IMPACT_DOCS.subtitle}
               </p>
 
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  {/* Left: Ideology */}
+                  <div className="bg-slate-950/50 p-5 rounded-lg border border-slate-800">
+                      <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2"><Sparkles className="w-3 h-3" /> {BUILDER_IMPACT_DOCS.ideology.title}</div>
+                      <p className="text-sm text-slate-300 leading-relaxed">{BUILDER_IMPACT_DOCS.ideology.content}</p>
+                  </div>
+
+                  {/* Right: Technical Specs */}
+                  <div className="bg-[#0f172a] p-5 rounded-lg border border-slate-800 font-mono relative overflow-hidden">
+                      <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-2"><Terminal className="w-3 h-3" /> {BUILDER_IMPACT_DOCS.specs.title}</div>
+                      <div className="space-y-2 text-xs">
+                         <div className="flex gap-2"><span className="text-slate-500">Target:</span><span className="text-white truncate">{BUILDER_IMPACT_DOCS.specs.address}</span></div>
+                         <div className="flex gap-2"><span className="text-slate-500">Scenario:</span><span className="text-indigo-300">{BUILDER_IMPACT_DOCS.specs.target}</span></div>
+                         <div className="mt-2 border-t border-slate-800 pt-2 text-slate-400">
+                             {BUILDER_IMPACT_DOCS.specs.calls.map((call, i) => <div key={i} className="flex gap-2"><span>&gt;</span><span>{call}</span></div>)}
+                         </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Bottom: The 3 Metrics Cards (Restored Style) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800">
-                      <div className="text-xs uppercase tracking-wider text-purple-400 font-bold mb-2">Metric 1: R.A.F.</div>
-                      <div className="text-white font-bold mb-1">Request Amplification Factor</div>
-                      <p className="text-xs text-slate-400">
-                          How many HTTP requests does the frontend need to send to perform <strong>1 Logical Task</strong>? 
-                          <br/><br/>
-                          <em>Ideal Score: 1. (Unified API)</em>
-                          <br/>
-                          <em>Poor Score: 10+. (Waterfall fetching)</em>
-                      </p>
-                  </div>
-                  <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-                      <div className="text-xs uppercase tracking-wider text-emerald-400 font-bold mb-2">Metric 2: Data Richness</div>
-                      <div className="text-white font-bold mb-1">Completeness & Metadata</div>
-                      <p className="text-xs text-slate-400">
-                          Does the provider return usable application data (Images, CSS-friendly decimals, USD Prices) or just raw Blockchain Hex?
-                          <br/><br/>
-                          <em>Higher score means less client-side processing code required.</em>
-                      </p>
-                  </div>
-                  <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-                      <div className="text-xs uppercase tracking-wider text-amber-400 font-bold mb-2">Metric 3: Time-to-Interactive</div>
-                      <div className="text-white font-bold mb-1">The "Waterfall" Effect</div>
-                      <p className="text-xs text-slate-400">
-                          Measures the total time until the UI is ready. This accounts for the latency of <strong>sequential</strong> requests (e.g., getting a list of tokens, THEN getting prices for each).
-                      </p>
-                  </div>
+                  {BUILDER_IMPACT_DOCS.metrics.map((m, i) => (
+                      <div key={i} className={`bg-slate-900/50 p-4 rounded-lg border border-slate-800 ${i === 0 ? 'border-purple-500/20' : i === 1 ? 'border-emerald-500/20' : 'border-amber-500/20'}`}>
+                          <div className={`text-xs uppercase tracking-wider font-bold mb-2 ${i === 0 ? 'text-purple-400' : i === 1 ? 'text-emerald-400' : 'text-amber-400'}`}>{m.subtitle}</div>
+                          <div className="text-white font-bold mb-1">{m.title}</div>
+                          <p className="text-xs text-slate-400 leading-relaxed">{m.desc}</p>
+                      </div>
+                  ))}
               </div>
            </div>
 
@@ -121,7 +121,7 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
              <div className="rounded-xl border border-slate-800 overflow-hidden shadow-lg">
                <table className="w-full text-left border-collapse">
                  <thead className="bg-slate-900"><tr className="text-xs uppercase text-slate-400"><th className="px-6 py-4 font-semibold">Metric</th><th className="px-6 py-4 font-semibold">Data Type</th><th className="px-6 py-4 font-semibold">Reason / Source</th></tr></thead>
-                 <tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : r.type === "Calculated" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody>
+                 <tbody className="divide-y divide-slate-800 bg-slate-950/50">{TRANSPARENCY_DATA.map((r,i)=><tr key={i} className="hover:bg-slate-900/50 transition-colors"><td className="px-6 py-4 text-slate-200 text-sm font-medium">{r.metric}</td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] uppercase font-bold border ${r.type === "Real-Time" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : r.type === "Simulated" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>{r.type}</span></td><td className="px-6 py-4 text-slate-400 text-sm">{r.reason}</td></tr>)}</tbody>
                </table>
              </div>
            </div>
@@ -220,7 +220,6 @@ const PortfolioInspectorModal = ({ isOpen, onClose, data }) => {
     );
 };
 
-
 // --- MAIN APP COMPONENT ---
 export default function App() {
   // Config State
@@ -244,11 +243,13 @@ export default function App() {
   const [isLogExpanded, setLogExpanded] = useState(false);
   const [inspectorData, setInspectorData] = useState(null);
   const [portfolioInspectorData, setPortfolioInspectorData] = useState(null);
+  const [isPortfolioLogExpanded, setPortfolioLogExpanded] = useState(false); // NEW STATE
 
   // Hook Executions
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
   const { contractData, isTestingContracts, runContractTest } = useSmartBenchmark(INITIAL_DATA, network);
-  const { results: portfolioResults, isRunning: isPortfolioRunning, runPortfolioTest, progress: portfolioProgress } = usePortfolioBenchmark();
+  // NEW: Destructure logs from portfolio hook
+  const { results: portfolioResults, isRunning: isPortfolioRunning, runPortfolioTest, progress: portfolioProgress, logs: portfolioLogs } = usePortfolioBenchmark();
   const officialStatuses = useStatusPage();
 
   // Handlers
@@ -323,8 +324,12 @@ export default function App() {
       <InspectorModal isOpen={!!inspectorData} onClose={() => setInspectorData(null)} data={inspectorData} />
       <PortfolioInspectorModal isOpen={!!portfolioInspectorData} onClose={() => setPortfolioInspectorData(null)} data={portfolioInspectorData} />
 
+      {/* Main Logs Modal */}
       {isLogExpanded && <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm"><div className="bg-slate-950 border border-slate-700 w-full max-w-5xl h-[80vh] rounded-2xl flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200"><div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50"><div className="flex items-center gap-2 text-emerald-400 font-mono text-sm uppercase tracking-wider"><Terminal className="w-4 h-4" /> Live Execution Log</div><button onClick={() => setLogExpanded(false)} className="p-2 hover:bg-slate-800 rounded text-slate-400 hover:text-white"><X className="w-5 h-5"/></button></div><div className="flex-1 overflow-auto p-6 font-mono text-xs text-slate-300 space-y-2">{logs.map((log, i) => <div key={i} className="border-b border-white/5 pb-1 border-dashed">{log}</div>)}</div></div></div>}
       
+      {/* Portfolio Logs Modal (NEW) */}
+      {isPortfolioLogExpanded && <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm"><div className="bg-slate-950 border border-slate-700 w-full max-w-5xl h-[80vh] rounded-2xl flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200"><div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50"><div className="flex items-center gap-2 text-purple-400 font-mono text-sm uppercase tracking-wider"><Terminal className="w-4 h-4" /> Builder Impact Logs</div><button onClick={() => setPortfolioLogExpanded(false)} className="p-2 hover:bg-slate-800 rounded text-slate-400 hover:text-white"><X className="w-5 h-5" /></button></div><div className="flex-1 overflow-auto p-6 font-mono text-xs text-slate-300 space-y-2">{portfolioLogs.length > 0 ? portfolioLogs.map((log, i) => <div key={i} className="border-b border-white/5 pb-1 border-dashed">{log}</div>) : <div className="text-slate-600 italic">No logs available. Run the benchmark to generate trace.</div>}</div></div></div>}
+
       <nav className="border-b border-white/5 bg-[#020617]/80 backdrop-blur-xl sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between py-4">
               <div className="flex items-center gap-3">
@@ -472,6 +477,15 @@ export default function App() {
                     </div>
                     <div className="flex gap-2 items-center">
                         <div className="text-xs text-purple-300 animate-pulse font-mono mr-2">{portfolioProgress}</div>
+                        
+                        {/* NEW: View Logs Button */}
+                        <button 
+                            onClick={() => setPortfolioLogExpanded(true)}
+                            className="bg-slate-900 border border-slate-700 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 mr-2"
+                        >
+                            <Terminal className="w-3 h-3" /> Logs
+                        </button>
+
                         <input 
                             type="text" 
                             value={targetWallet} 

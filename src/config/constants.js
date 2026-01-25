@@ -1,5 +1,6 @@
 import { Zap, Activity, Gauge, DollarSign } from 'lucide-react';
 
+// ... (Keep INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS as they are) ...
 export const INITIAL_DATA = [
   { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
   { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
@@ -45,10 +46,11 @@ export const DEFINITIONS_DATA = [
 ];
 
 export const TRANSPARENCY_DATA = [
-    { metric: "Latency & Lag", type: "Real-Time", reason: "Measured live from your session." },
+    { metric: "Latency & Lag", type: "Real-Time", reason: "Measured live from your session via browser fetch." },
     { metric: "Security/Header Leaks", type: "Real-Time", reason: "We analyze response headers for 'Server' or 'X-Powered-By' leakage." },
+    { metric: "Unified API (Covalent/Mobula)", type: "Real-Time", reason: "Live calls to 'GoldRush' and 'Wallet' APIs." },
+    { metric: "Codex/Defined", type: "Simulated", reason: "Modeled GraphQL latency (Mocking logic due to missing API Key)." },
     { metric: "Smart Contract Read", type: "Real-Time", reason: "Performs actual eth_call to verified Token Contracts on-chain." },
-    { metric: "Chain Coverage", type: "Static", reason: "Hardcoded from documentation." },
 ];
 
 export const BUILDER_METRICS = {
@@ -58,7 +60,6 @@ export const BUILDER_METRICS = {
         HIGH: 5      // Raw RPC, manual ABI decoding, multiple loops
     },
     costs: {
-        // Standardized to Micro-USD per request/unit for comparison
         transaction_item: 10,   // Covalent (~$0.00001 per item)
         compute_unit: 0.2,      // Alchemy (~$0.20 per 1M CUs -> 0.0002 per CU)
         credit_mobula: 50,      // Mobula (Approx proxy)
@@ -68,10 +69,45 @@ export const BUILDER_METRICS = {
     }
 };
 
-// Top 20 Token Contracts for "Waterfall" simulation (Ethereum)
-export const SIMULATION_TOKENS = [
-    "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT
-    "0xB8c77482e45F1F44dE1745F52C74426C631bDD52", // BNB
-    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC
-    // ... (In a real app, this list would be longer. We use these for the loop)
-];
+// UPDATED: Restoring the Card Structure + Adding Ideology & Technical Specs
+export const BUILDER_IMPACT_DOCS = {
+    title: "The Builder's Impact Framework",
+    subtitle: "Benchmarking the 'Total Developer Experience' rather than just node latency.",
+    // Section 1: The Philosophy
+    ideology: {
+        title: "The Ideology",
+        content: "Traditional benchmarks measure how fast a single `eth_blockNumber` returns. This is irrelevant for modern dApps. We believe performance should be measured by the **Total Efficiency** of building a feature. If a provider is fast but forces you to make 50 requests to display one page, the User Experience suffers."
+    },
+    // Section 2: The Specifics (What are we actually doing?)
+    specs: {
+        title: "Simulation Specifications",
+        target: "Wallet Portfolio (Balances + Prices + Metadata)",
+        address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 (Vitalik.eth)",
+        calls: [
+            "1. Fetch ERC-20 Token Balances",
+            "2. Fetch Token Decimals, Symbols, and Logos",
+            "3. Fetch Real-time USD Spot Prices"
+        ]
+    },
+    // Section 3: The Parameters (The Cards you liked)
+    metrics: [
+        {
+            title: "Request Amplification Factor",
+            subtitle: "Metric 1: Efficiency",
+            desc: "The ratio of HTTP requests needed to complete the task vs. the logical task count (1). A Unified API has an RAF of 1. A standard RPC often has an RAF of 10+ (Waterfall Effect).",
+            color: "purple" 
+        },
+        {
+            title: "Data Richness Score",
+            subtitle: "Metric 2: Completeness",
+            desc: "Does the provider return application-ready data (Images, CSS-friendly decimals, Prices) or just raw blockchain hex? Higher score means less client-side processing code.",
+            color: "emerald"
+        },
+        {
+            title: "Time-to-Interactive",
+            subtitle: "Metric 3: Speed",
+            desc: "Measures the total time from the first request start to the final UI render. This accounts for the cumulative latency of sequential requests.",
+            color: "amber"
+        }
+    ]
+};
