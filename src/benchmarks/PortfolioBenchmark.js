@@ -2,12 +2,11 @@ import { NETWORK_CONFIG } from '../hooks/useBenchmark';
 import { BUILDER_METRICS } from '../config/constants';
 
 export class PortfolioBenchmark {
-    // UPDATED: Constructor now accepts a logging callback
     constructor(walletAddress, chainId = 'ethereum', onLog = () => {}) {
         this.wallet = walletAddress;
         this.chain = chainId;
         this.config = NETWORK_CONFIG[chainId];
-        this.log = onLog; // Attach logger
+        this.log = onLog; 
         this.results = {};
     }
 
@@ -143,16 +142,59 @@ export class PortfolioBenchmark {
     }
 
     async benchmarkCodex() {
-        // EXPLICIT LOGGING OF SIMULATION
-        this.log(`[Codex] No API Key provided. Simulating GraphQL Latency model...`);
-        await new Promise(r => setTimeout(r, 150)); 
-        this.log(`[Codex] Simulation complete. Modelled 150ms latency.`);
+        const apiKey = import.meta.env.VITE_CODEX_KEY;
+        if (!apiKey) {
+            this.log(`[Codex] Skipped: VITE_CODEX_KEY missing in .env`);
+            return { requests_sent: 0, data_richness_score: 0, estimated_cost_units: 0, integration_complexity: BUILDER_METRICS.complexity.HIGH };
+        }
+
+        const endpoint = "https://graph.codex.io/graphql";
+        // Unified Query: Balances + Metadata + Prices
+        const query = `
+            query GetBalances($wallet: String!, $network: Int!) {
+              balances(walletAddress: $wallet, networks: [$network]) {
+                items {
+                  tokenAddress
+                  symbol
+                  balance
+                  decimals
+                  tokenPriceUsd
+                  imageThumbUrl
+                }
+              }
+            }
+        `;
+
+        this.log(`[Codex] Posting GraphQL Query (Balances + Prices + Logos)...`);
+        
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': apiKey 
+            },
+            body: JSON.stringify({
+                query,
+                variables: { wallet: this.wallet, network: this.config.id }
+            })
+        });
+
+        if (!res.ok) throw new Error(`Codex API Error: ${res.status}`);
+        
+        const json = await res.json();
+        if (json.errors) throw new Error(json.errors[0].message);
+
+        const items = json.data?.balances?.items || [];
+        this.log(`[Codex] Success. Retrieved ${items.length} holdings.`);
+
+        // Scoring: Codex returns prices and images, so richness is high
+        const hasRichData = items.some(i => i.tokenPriceUsd && i.imageThumbUrl);
 
         return {
             requests_sent: 1,
-            data_richness_score: 90, 
-            estimated_cost_units: 1,
-            integration_complexity: BUILDER_METRICS.complexity.MEDIUM 
+            data_richness_score: hasRichData ? 98 : 70, 
+            estimated_cost_units: 1, // 1 Query = 1 Unit cost roughly
+            integration_complexity: BUILDER_METRICS.complexity.MEDIUM // GraphQL requires schema knowledge
         };
     }
 
@@ -161,11 +203,10 @@ export class PortfolioBenchmark {
         this.log(`[QuickNode] Attempting Core Ext: 'qn_getWalletTokenBalance'...`);
         
         const payload = { method: "qn_getWalletTokenBalance", params: [{ wallet: this.wallet }] };
-        // We catch errors here to fallback to simulation if addon is missing
         try {
             await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
         } catch(e) {
-            this.log(`[QuickNode] Addon not detected. simulating success.`);
+            this.log(`[QuickNode] Addon not detected or failed.`);
         }
 
         return {

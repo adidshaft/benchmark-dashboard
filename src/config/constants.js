@@ -1,6 +1,5 @@
-import { Zap, Activity, Gauge, DollarSign } from 'lucide-react';
+import { Zap, Activity, Gauge, DollarSign, Sparkles, Terminal } from 'lucide-react';
 
-// ... (Keep INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS as they are) ...
 export const INITIAL_DATA = [
   { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
   { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
@@ -49,7 +48,7 @@ export const TRANSPARENCY_DATA = [
     { metric: "Latency & Lag", type: "Real-Time", reason: "Measured live from your session via browser fetch." },
     { metric: "Security/Header Leaks", type: "Real-Time", reason: "We analyze response headers for 'Server' or 'X-Powered-By' leakage." },
     { metric: "Unified API (Covalent/Mobula)", type: "Real-Time", reason: "Live calls to 'GoldRush' and 'Wallet' APIs." },
-    { metric: "Codex/Defined", type: "Simulated", reason: "Modeled GraphQL latency (Mocking logic due to missing API Key)." },
+    { metric: "Codex (Defined.fi)", type: "Real-Time", reason: "Live GraphQL query for Balances & Metadata." },
     { metric: "Smart Contract Read", type: "Real-Time", reason: "Performs actual eth_call to verified Token Contracts on-chain." },
 ];
 
@@ -69,7 +68,6 @@ export const BUILDER_METRICS = {
     }
 };
 
-// UPDATED: Restoring the Card Structure + Adding Ideology & Technical Specs
 export const BUILDER_IMPACT_DOCS = {
     title: "The Builder's Impact Framework",
     subtitle: "Benchmarking the 'Total Developer Experience' rather than just node latency.",
@@ -89,7 +87,7 @@ export const BUILDER_IMPACT_DOCS = {
             "3. Fetch Real-time USD Spot Prices"
         ]
     },
-    // Section 3: The Parameters (The Cards you liked)
+    // Section 3: The Parameters
     metrics: [
         {
             title: "Request Amplification Factor",
