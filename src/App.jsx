@@ -6,7 +6,7 @@ import {
 import { 
   Zap, Globe, CheckCircle2, Play, RotateCw, Layers, Info, 
   Settings2, Signal, Hexagon, DollarSign, Filter, Activity, Server, ArrowUpDown, Search, 
-  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert, Target, Download, Box, AlertTriangle, Check, Briefcase, Sparkles, Radio
+  ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert, Target, Download, Box, AlertTriangle, Check, Briefcase, Sparkles, Radio, Circle
 } from 'lucide-react';
 
 import { useBenchmark, NETWORK_CONFIG } from './hooks/useBenchmark';
@@ -78,7 +78,6 @@ const METRIC_DEFINITIONS = {
 };
 
 // --- COMPONENTS ---
-// FIXED: Increased z-index to 99999 to properly overlay tables
 const Tooltip = ({ content, children }) => (
   <div className="group relative flex items-center justify-center z-[99999]">
     {children}
@@ -151,7 +150,6 @@ const Sparkline = ({ data = [], color }) => {
   return <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" /></svg></div>;
 };
 
-// FIXED: Use overflow-visible instead of hidden on GlassCard
 const GlassCard = ({ children, className = "" }) => <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>;
 const Badge = ({ children, color = "indigo" }) => <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border bg-${color}-500/10 text-${color}-400 border-${color}-500/20`}>{children}</span>;
 
@@ -336,19 +334,46 @@ export default function App() {
            </div>
         </div>
 
-        {/* FIXED: 'overflow-visible' allows the Tooltip to spill out */}
         <div className="mt-8">
             <GlassCard className="p-0 overflow-visible">
                 <div className="overflow-visible">
                     <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider"><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>Provider <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>P50 <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Stability</th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('batchLatency')}>Batch (10x) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('gas')}>Gas (Gwei) <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('coverage')}>Chains <ArrowUpDown className="w-3 h-3 inline ml-1" /></th><th className="px-6 py-4">Capabilities</th><th className="px-6 py-4">Security</th><th className="px-6 py-4 text-right cursor-pointer hover:text-white" onClick={() => handleSort('freeTier')}>Free Tier <ArrowUpDown className="w-3 h-3 inline ml-1" /></th></tr>
+                      <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
+                        {/* FIXED: Headers now have Tooltips for definition context */}
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>
+                            <Tooltip content="Service Provider Name"><div className="flex items-center gap-1">Provider <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
+                        </th>
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('latency')}>
+                            <Tooltip content="Median response time (lower is better)."><div className="flex items-center gap-1">P50 <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
+                        </th>
+                        <th className="px-6 py-4">
+                            <Tooltip content="Latency history sparkline (20 points).">Stability</Tooltip>
+                        </th>
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('batchLatency')}>
+                            <Tooltip content="Time to process 10 requests in one batch."><div className="flex items-center gap-1">Batch (10x) <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
+                        </th>
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('gas')}>
+                            <Tooltip content="Real-time gas price estimation."><div className="flex items-center gap-1">Gas (Gwei) <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
+                        </th>
+                        <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('coverage')}>
+                            <Tooltip content="Number of supported networks."><div className="flex items-center gap-1">Chains <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
+                        </th>
+                        <th className="px-6 py-4">
+                            <Tooltip content="Advanced features (Archive, Trace, etc).">Capabilities</Tooltip>
+                        </th>
+                        <th className="px-6 py-4">
+                            <Tooltip content="HTTPS & Header Leak analysis.">Security</Tooltip>
+                        </th>
+                        <th className="px-6 py-4 text-right cursor-pointer hover:text-white" onClick={() => handleSort('freeTier')}>
+                            <Tooltip content="Free tier limits (normalized)."><div className="flex items-center justify-end gap-1">Free Tier <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
+                        </th>
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {sortedAndFilteredData.map((provider) => (
                         <tr key={provider.name} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setInspectorData(provider)}>
                           <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                              {/* STATUS INDICATOR (Always Visible) */}
                               <Tooltip content={provider.officialStatus?.description || "All Systems Operational"}>
                                   {provider.officialStatus?.indicator === 'minor' ? <AlertTriangle className="w-3 h-3 text-amber-500 animate-pulse" /> : 
                                    provider.officialStatus?.indicator === 'major' || provider.officialStatus?.indicator === 'critical' ? <ShieldAlert className="w-3 h-3 text-red-500 animate-bounce" /> : 
