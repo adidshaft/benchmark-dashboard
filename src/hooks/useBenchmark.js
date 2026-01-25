@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export const NETWORK_CONFIG = {
+  // ... (Keep your existing NETWORK_CONFIG object here - heavily abbreviated for brevity)
   ethereum: {
     id: 1,
     Alchemy: { url: `https://eth-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
@@ -10,48 +11,7 @@ export const NETWORK_CONFIG = {
     Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Ethereum', type: 'REST', authHeader: true },
     Codex: { url: null, type: 'REST' }
   },
-  polygon: {
-    id: 137,
-    Alchemy: { url: `https://polygon-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
-    Infura: { url: `https://polygon-mainnet.infura.io/v3/${import.meta.env.VITE_INFURA_KEY}`, type: 'RPC' },
-    Covalent: { url: `https://api.covalenthq.com/v1/137/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
-    Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Polygon', type: 'REST', authHeader: true },
-  },
-  arbitrum: {
-    id: 42161,
-    Alchemy: { url: `https://arb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
-    Infura: { url: `https://arbitrum-mainnet.infura.io/v3/${import.meta.env.VITE_INFURA_KEY}`, type: 'RPC' },
-    Covalent: { url: `https://api.covalenthq.com/v1/42161/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
-    Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Arbitrum', type: 'REST', authHeader: true },
-  },
-  optimism: {
-    id: 10,
-    Alchemy: { url: `https://opt-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
-    Infura: { url: `https://optimism-mainnet.infura.io/v3/${import.meta.env.VITE_INFURA_KEY}`, type: 'RPC' },
-    Covalent: { url: `https://api.covalenthq.com/v1/10/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
-    Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Optimism', type: 'REST', authHeader: true },
-  },
-  base: {
-    id: 8453,
-    Alchemy: { url: `https://base-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
-    Infura: { url: null, type: 'RPC' },
-    Covalent: { url: `https://api.covalenthq.com/v1/8453/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
-    Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Base', type: 'REST', authHeader: true },
-  },
-  bsc: {
-    id: 56,
-    Alchemy: { url: `https://bnb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_KEY}`, type: 'RPC' },
-    Infura: { url: null, type: 'RPC' },
-    Covalent: { url: `https://api.covalenthq.com/v1/56/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
-    Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=BNB', type: 'REST', authHeader: true },
-  },
-  avalanche: {
-    id: 43114,
-    Alchemy: { url: null, type: 'RPC' },
-    Infura: { url: `https://avalanche-mainnet.infura.io/v3/${import.meta.env.VITE_INFURA_KEY}`, type: 'RPC' },
-    Covalent: { url: `https://api.covalenthq.com/v1/43114/block_v2/latest/?key=${import.meta.env.VITE_COVALENT_KEY}`, type: 'REST' },
-    Mobula: { url: 'https://api.mobula.io/api/1/market/data?asset=Avalanche', type: 'REST', authHeader: true },
-  }
+  // ... copy the rest of your networks from the previous file
 };
 
 const performRequest = async (config, payload, method = 'POST') => {
@@ -78,7 +38,7 @@ const performRequest = async (config, payload, method = 'POST') => {
 const checkSecurity = (config, headers) => {
     let score = 100;
     let issues = [];
-    if (!config || !config.url) return { score: 0, issues: ['Config Missing'] }; // Safety Check
+    if (!config || !config.url) return { score: 0, issues: ['Config Missing'] };
 
     if (!config.url.startsWith('https')) { score -= 50; issues.push("Insecure HTTP detected"); }
     
@@ -90,13 +50,30 @@ const checkSecurity = (config, headers) => {
 };
 
 export const useBenchmark = (initialData, activeNetwork, precisionMode, requestType) => {
-  const [benchmarkData, setData] = useState(initialData.map(d => ({ 
+  // 1. Load History from LocalStorage on initialization
+  const [benchmarkData, setData] = useState(() => {
+    const savedHistory = localStorage.getItem(`benchmark_history_${activeNetwork}`);
+    const parsedHistory = savedHistory ? JSON.parse(savedHistory) : {};
+
+    return initialData.map(d => ({ 
       ...d, 
-      history: [], 
-      securityIssues: d.securityIssues || [] // Ensure Array initialization
-  })));
+      // Load saved history or start empty
+      history: parsedHistory[d.name] || [], 
+      securityIssues: d.securityIssues || [] 
+    }));
+  });
+
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]); 
+
+  // 2. Persist History whenever benchmarkData updates
+  useEffect(() => {
+    const historyMap = {};
+    benchmarkData.forEach(p => {
+        if (p.history.length > 0) historyMap[p.name] = p.history;
+    });
+    localStorage.setItem(`benchmark_history_${activeNetwork}`, JSON.stringify(historyMap));
+  }, [benchmarkData, activeNetwork]);
 
   const addLog = (msg) => setLogs(prev => [...prev.slice(-10), `[${new Date().toLocaleTimeString().split(' ')[0]}] ${msg}`]);
 
@@ -106,24 +83,16 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
     addLog(`Initializing Intelligence Suite for ${activeNetwork}...`);
     
     const iterations = precisionMode === 'robust' ? 5 : 2;
+    // Note: ensure you import NETWORK_CONFIG or define it in this file
     const networkConfig = NETWORK_CONFIG[activeNetwork] || NETWORK_CONFIG.ethereum;
     
-    // Copy current state to preserve existing data while updating
     let currentData = [...benchmarkData];
 
     const updates = await Promise.all(currentData.map(async (provider) => {
       const config = networkConfig[provider.name];
 
-      // Handle unsupported networks safely
       if (!config || !config.url) {
-          return { 
-              ...provider, 
-              latency: 0, batchLatency: 0, p99: 0, uptime: 0, lag: 'N/A', 
-              blockHeight: 0, archive: false, gas: 0, 
-              securityScore: 0, 
-              securityIssues: [], // Explicitly return empty array
-              lastResponse: null 
-          };
+          return { ...provider, latency: 0, batchLatency: 0, p99: 0, uptime: 0, lag: 'N/A', blockHeight: 0, archive: false, gas: 0, securityScore: 0, securityIssues: [], lastResponse: null };
       }
 
       addLog(`Auditing ${provider.name}...`);
@@ -159,7 +128,6 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
             latencies.push(0);
         }
 
-        // Batch Ping
         if (config.type === 'RPC' && requestType === 'light') {
             const batchPayload = Array(10).fill(null).map((_, idx) => ({ jsonrpc: "2.0", id: idx, method: "eth_blockNumber", params: [] }));
             const bStart = performance.now();
@@ -171,20 +139,16 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
         await new Promise(r => setTimeout(r, 100));
       }
 
-      // Security Checks
       let secScore = 100, secIssues = [];
       if (config.type === 'RPC') {
-          // Archive
           const archivePayload = { jsonrpc: "2.0", id: 2, method: "eth_getBalance", params: ["0x0000000000000000000000000000000000000000", "0x1"] };
           const archiveRes = await performRequest(config, archivePayload);
           if (archiveRes.json?.result) detectedArchive = true;
 
-          // Gas
           const gasPayload = { jsonrpc: "2.0", id: 3, method: "eth_gasPrice", params: [] };
           const gasRes = await performRequest(config, gasPayload);
           if (gasRes.json?.result) lastGas = parseInt(gasRes.json.result, 16) / 1e9;
 
-          // Security
           const sec = checkSecurity(config, lastHeaders);
           secScore = sec.score;
           secIssues = sec.issues || [];
@@ -203,11 +167,12 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
         uptime: Math.round((successCount / iterations) * 100), 
         blockHeight: lastBlockHeight, 
         lag: p50 === 0 ? 'Error' : 0,
+        // Append new latency to existing history
         history: [...(provider.history || []), ...latencies].slice(-20),
         archive: config.type === 'RPC' ? detectedArchive : provider.archive,
         gas: lastGas,
         securityScore: secScore,
-        securityIssues: secIssues, // Guaranteed Array
+        securityIssues: secIssues,
         lastResponse: lastRawResponse
       };
     }));

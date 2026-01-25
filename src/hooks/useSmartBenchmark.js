@@ -1,4 +1,3 @@
-// src/hooks/useSmartBenchmark.js
 import { useState, useCallback } from 'react';
 import { CONTRACT_REGISTRY } from '../config/contracts';
 import { encodeFunctionCall } from '../utils/abiEncoder';
@@ -21,9 +20,20 @@ export const useSmartBenchmark = (initialData, activeNetwork) => {
     const [contractData, setContractData] = useState([]);
     const [isTestingContracts, setIsTestingContracts] = useState(false);
 
+    // Calculate the most common result (The "Truth")
+    const getConsensus = (results) => {
+        if (!results || results.length === 0) return null;
+        const counts = {};
+        results.forEach(r => { 
+            if (r.success && r.result) counts[r.result] = (counts[r.result] || 0) + 1; 
+        });
+        // Returns the result with the highest count
+        return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, null);
+    };
+
     const runContractTest = useCallback(async (providers, type = 'erc20') => {
         setIsTestingContracts(true);
-        setContractData([]); // Clear previous results
+        setContractData([]); 
         
         const targetContract = CONTRACT_REGISTRY[activeNetwork]?.[type];
 
@@ -39,9 +49,9 @@ export const useSmartBenchmark = (initialData, activeNetwork) => {
             params: [{ to: targetContract.address, data: encodedData }, "latest"]
         };
 
-        const results = await Promise.all(providers.map(async (provider) => {
+        const rawResults = await Promise.all(providers.map(async (provider) => {
             if (!provider.url || !provider.url.startsWith('http')) {
-                return { name: provider.name, success: false, time: 0, result: null, raw: null };
+                return { name: provider.name, success: false, time: 0, result: null };
             }
 
             const start = performance.now();
@@ -51,9 +61,9 @@ export const useSmartBenchmark = (initialData, activeNetwork) => {
             let formattedResult = null;
             if (res.result && res.result !== '0x') {
                 try {
-                    // If method is URI or Name, treat as string/hex, otherwise BigInt
+                    // Normalize BigInts to strings for comparison
                     if (targetContract.testMethod === 'uri' || targetContract.testMethod === 'name') {
-                        formattedResult = "Data Found"; // Keep it simple for UI, validate raw hash later
+                        formattedResult = "Data Found"; 
                     } else {
                         formattedResult = BigInt(res.result).toString();
                     }
@@ -67,12 +77,20 @@ export const useSmartBenchmark = (initialData, activeNetwork) => {
                 success: res.ok && !res.error && formattedResult !== null,
                 time: Math.round(end - start),
                 result: formattedResult,
-                raw: res.result,
                 target: targetContract.name
             };
         }));
 
-        setContractData(results);
+        // Analyze Consensus
+        const consensusValue = getConsensus(rawResults);
+        
+        const auditedResults = rawResults.map(r => ({
+            ...r,
+            // It is a mismatch if it succeeded, we have a consensus, and this result differs from consensus
+            isMismatch: r.success && consensusValue && r.result !== consensusValue
+        }));
+
+        setContractData(auditedResults);
         setIsTestingContracts(false);
     }, [activeNetwork]);
 

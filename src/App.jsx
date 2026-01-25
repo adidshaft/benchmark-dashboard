@@ -9,86 +9,41 @@ import {
   ShieldCheck, Database, FileCode, Gauge, BookOpen, X, Eye, ChevronDown, CheckSquare, Square, Terminal, Maximize2, HelpCircle, ShieldAlert, Target, Download, Box, AlertTriangle, Check, Briefcase, Sparkles, Radio, Circle
 } from 'lucide-react';
 
+// --- CUSTOM HOOKS ---
 import { useBenchmark, NETWORK_CONFIG } from './hooks/useBenchmark';
 import { useSmartBenchmark } from './hooks/useSmartBenchmark';
 import { useStatusPage } from './hooks/useStatusPage';
 
-// --- DATA & CONFIG ---
-const INITIAL_DATA = [
-  { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'QuickNode', latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0,0], freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Covalent', latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0,0], freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Mobula', latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0,0], freeTier: 'Freemium', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Codex', latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0,0], freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] }
-];
+// --- COMPONENTS & CONFIG ---
+import MetricExplanation from './components/MetricExplanation';
+import Tooltip from './components/Tooltip';
+import { INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS, DEFINITIONS_DATA, TRANSPARENCY_DATA } from './config/constants';
 
-const SUPPORTED_CHAINS = [
-    { id: 'ethereum', label: 'Ethereum', color: 'bg-indigo-500' },
-    { id: 'polygon', label: 'Polygon', color: 'bg-purple-500' },
-    { id: 'arbitrum', label: 'Arbitrum', color: 'bg-blue-400' },
-    { id: 'optimism', label: 'Optimism', color: 'bg-red-500' },
-    { id: 'base', label: 'Base', color: 'bg-blue-600' },
-    { id: 'bsc', label: 'BSC', color: 'bg-amber-400' },
-    { id: 'avalanche', label: 'Avalanche', color: 'bg-red-600' },
-];
+// (Local small components can stay here or move to /components/ui)
+const GlassCard = ({ children, className = "" }) => <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>;
 
-const STRATEGIES = {
-    balanced: { label: "Balanced", weights: { speed: 0.3, uptime: 0.3, cost: 0.2, lag: 0.2 } },
-    speed: { label: "Performance First", weights: { speed: 0.6, uptime: 0.2, cost: 0.1, lag: 0.1 } },
-    cost: { label: "Cost Efficiency", weights: { speed: 0.1, uptime: 0.2, cost: 0.6, lag: 0.1 } },
-    reliability: { label: "Maximum Reliability", weights: { speed: 0.1, uptime: 0.6, cost: 0.1, lag: 0.2 } }
+const Sparkline = ({ data = [], color }) => { 
+  if (!data || data.length < 2) return <div className="h-8 w-24 bg-white/5 rounded animate-pulse"></div>;
+  const validData = data.filter(d => typeof d === 'number');
+  const max = Math.max(...validData, 1);
+  const minData = validData.filter(d => d > 0);
+  const min = minData.length > 0 ? Math.min(...minData) : 0;
+  const range = max - min || 1;
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * 100;
+    const normalizedY = val === 0 ? 32 : 32 - ((val - min) / range) * 28; 
+    return `${x},${normalizedY}`;
+  }).join(' ');
+  return <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" /></svg></div>;
 };
 
-const USE_CASE_PRESETS = {
-    general: { label: "General Purpose", desc: "Balanced mix of speed, reliability, and cost.", weights: { latency: 0.3, batch: 0.1, reliability: 0.3, cost: 0.2, integrity: 0.1 } },
-    dex: { label: "DEX / Trading", desc: "Prioritizes raw execution speed & P99 stability.", weights: { latency: 0.5, batch: 0.0, reliability: 0.4, cost: 0.0, integrity: 0.1 } },
-    wallet: { label: "Wallet / Portfolio", desc: "Prioritizes Batch Throughput (loading many tokens).", weights: { latency: 0.1, batch: 0.5, reliability: 0.2, cost: 0.1, integrity: 0.1 } },
-    indexer: { label: "Indexer / Data", desc: "Prioritizes Data Integrity, Archive Access & Uptime.", weights: { latency: 0.1, batch: 0.1, reliability: 0.3, cost: 0.1, integrity: 0.4 } },
-    mint: { label: "NFT Mint", desc: "Prioritizes P99 Stress Handling to avoid drops.", weights: { latency: 0.2, batch: 0.0, reliability: 0.7, cost: 0.0, integrity: 0.1 } }
+const formatBigNumber = (valueStr) => {
+    if (!valueStr || valueStr === 'Error') return 'N/A';
+    if (valueStr.length > 12) return valueStr.substring(0, 4) + '...'; 
+    return valueStr;
 };
 
-const DEFINITIONS_DATA = [
-  { param: "Batch Throughput", unit: "ms/10 reqs", source: "Time to process a batch of 10 RPC calls.", relevance: "Simulates high-load dashboard performance." },
-  { param: "P50 Latency", unit: "ms", source: "Median ping from client.", relevance: "General responsiveness." },
-  { param: "Security Score", unit: "0-100", source: "HTTPS & Header Leak analysis.", relevance: "Infrastructure hardening level." },
-  { param: "Archive Access", unit: "Boolean", source: "Live fetch of Genesis Block (#1).", relevance: "Verifies deep history access." },
-  { param: "Execution Audit", unit: "State Check", source: "Verifies eth_call on ERC20/721/1155.", relevance: "Ensures provider can read actual smart contract state." },
-  { param: "P99 Latency (Stress)", unit: "ms", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
-  { param: "Chain Support Count", unit: "Integer", source: "Count of Mainnet/Testnet networks listed in documentation.", relevance: "Filters providers for multi-chain projects vs. single-chain specialists." },
-  { param: "Free Tier Cap", unit: "Requests/Mo", source: "Normalized standard eth_call equivalent.", relevance: "The 'hook' for startups; determines how long they can build for free." },
-  { param: "Paid Entry Price", unit: "USD/Mo", source: "Cost of the cheapest paid plan.", relevance: "Important for projects graduating from the hackathon phase." },
-  { param: "Historical Uptime", unit: "%", source: "Session success rate (Real-time approximation).", relevance: "The baseline requirement for any production-grade application." },
-  { param: "Data Consistency", unit: "Boolean", source: "Automatic re-org handling.", relevance: "Prevents UI bugs where a user's balance flickers between blocks." }
-];
-
-const TRANSPARENCY_DATA = [
-    { metric: "Latency & Lag", type: "Real-Time", reason: "Measured live from your session." },
-    { metric: "Security/Header Leaks", type: "Real-Time", reason: "We analyze response headers for 'Server' or 'X-Powered-By' leakage." },
-    { metric: "Smart Contract Read", type: "Real-Time", reason: "Performs actual eth_call to verified Token Contracts on-chain." },
-    { metric: "Chain Coverage", type: "Static", reason: "Hardcoded from documentation." },
-];
-
-const METRIC_DEFINITIONS = {
-  score: { title: "CovalScore™", calc: "Dynamic Weighted Average based on selected Use Case.", meaning: "Best fit for your specific needs." },
-  speed: { title: "P50 Latency", calc: "Median response time.", meaning: "Lower is better." },
-  p99: { title: "P99 Stress", calc: "Peak response time.", meaning: "Lower is better." },
-  cost: { title: "Est. Cost", calc: "Volume based projection.", meaning: "Lower is better." },
-  reliability: { title: "Session Uptime", calc: "% of successful pings.", meaning: "Higher is better." }
-};
-
-// --- COMPONENTS ---
-const Tooltip = ({ content, children }) => (
-  <div className="group relative flex items-center justify-center z-[99999]">
-    {children}
-    <div className="absolute top-full mt-3 px-4 py-3 bg-[#020617] border border-slate-700 text-left rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none w-64 shadow-2xl transform translate-y-2 group-hover:translate-y-0 z-[99999]">
-      {content}
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-[1px] border-4 border-transparent border-b-slate-700"></div>
-      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-[#020617]"></div>
-    </div>
-  </div>
-);
-
+// Modals
 const DefinitionsModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
@@ -129,43 +84,6 @@ const InspectorModal = ({ isOpen, onClose, data }) => {
     );
 };
 
-const MetricExplanation = ({ type }) => {
-  const def = METRIC_DEFINITIONS[type];
-  if (!def) return null;
-  return <div><div className="text-sm font-bold text-white mb-1">{def.title}</div><p className="text-xs text-slate-300 mb-2 opacity-90 leading-relaxed">{def.calc}</p><div className="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-500/10 p-1.5 rounded border border-indigo-500/20 inline-block">{def.meaning}</div></div>;
-};
-
-const Sparkline = ({ data = [], color }) => { 
-  if (!data || data.length < 2) return <div className="h-8 w-24 bg-white/5 rounded animate-pulse"></div>;
-  const validData = data.filter(d => typeof d === 'number');
-  const max = Math.max(...validData, 1);
-  const minData = validData.filter(d => d > 0);
-  const min = minData.length > 0 ? Math.min(...minData) : 0;
-  const range = max - min || 1;
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * 100;
-    const normalizedY = val === 0 ? 32 : 32 - ((val - min) / range) * 28; 
-    return `${x},${normalizedY}`;
-  }).join(' ');
-  return <div className="h-8 w-24 opacity-80"><svg width="100%" height="100%" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points={points} fill="none" stroke={color} strokeWidth="2" /></svg></div>;
-};
-
-const GlassCard = ({ children, className = "" }) => <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>{children}</div>;
-const Badge = ({ children, color = "indigo" }) => <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border bg-${color}-500/10 text-${color}-400 border-${color}-500/20`}>{children}</span>;
-
-const formatBigNumber = (valueStr) => {
-    if (!valueStr || valueStr === 'Error') return 'N/A';
-    if (valueStr.length > 12) return valueStr.substring(0, 4) + '...'; 
-    return valueStr;
-};
-
-const getConsensus = (results) => {
-    if (!results || results.length === 0) return null;
-    const counts = {};
-    results.forEach(r => { if (r.success && r.result) counts[r.result] = (counts[r.result] || 0) + 1; });
-    return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, null);
-};
-
 export default function App() {
   const [activeTab, setActiveTab] = useState('score');
   const [network, setNetwork] = useState('ethereum'); 
@@ -186,8 +104,6 @@ export default function App() {
   const { benchmarkData, isRunning, runBenchmark, logs } = useBenchmark(INITIAL_DATA, network, precision, requestType);
   const { contractData, isTestingContracts, runContractTest } = useSmartBenchmark(INITIAL_DATA, network);
   const officialStatuses = useStatusPage();
-
-  const consensusValue = useMemo(() => getConsensus(contractData), [contractData]);
 
   const handleSmartTest = () => {
       const netConfig = NETWORK_CONFIG[network] || NETWORK_CONFIG.ethereum;
@@ -241,8 +157,6 @@ export default function App() {
 
   const winner = getWinner();
   const handleSort = (key) => setSortConfig({ key, direction: sortConfig.key === key && sortConfig.direction === 'desc' ? 'asc' : 'desc' });
-  const toggleProvider = (name) => setVisibleProviders(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]);
-  const toggleTableFilter = (key) => setTableFilters(prev => ({ ...prev, [key]: !prev[key] }));
   const handleExport = () => { 
       const headers = ["Provider", "P50 Latency", "P99 Latency", "Uptime", "Lag", "Gas", "Est. Cost"];
       const rows = sortedAndFilteredData.map(d => [d.name, d.latency, d.p99, d.uptime, d.lag, d.gas, d.calculatedCost].join(","));
@@ -274,13 +188,10 @@ export default function App() {
                   <div className={`flex items-center gap-2 text-xs font-medium text-slate-500 border border-white/5 px-3 py-1.5 rounded-full bg-white/[0.02]`}><div className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`}></div>{isRunning ? 'Benchmarking...' : 'System Operational'}</div>
               </div>
           </div>
-          <div className="bg-indigo-500/10 border-b border-indigo-500/20 py-1.5 flex items-center justify-center gap-2">
-              <Sparkles className="w-3 h-3 text-indigo-400" />
-              <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-300">New Feature: Execution Layer Audits now available for ERC20 & ERC721</span>
-          </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* TOP CONTROL PANEL */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
            <div className="lg:col-span-3 space-y-4">
               <GlassCard className="p-5 space-y-6 border-t-4 border-t-indigo-500/50">
@@ -293,12 +204,12 @@ export default function App() {
                   <div><label className="text-xs uppercase text-slate-500 font-bold tracking-wider mb-3 flex items-center gap-2"><Globe className="w-3 h-3" /> Target Network</label><div className="grid grid-cols-1 gap-1">{SUPPORTED_CHAINS.map((net) => (<button key={net.id} onClick={() => setNetwork(net.id)} className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${network === net.id ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${net.color}`}></div><span className="capitalize">{net.label}</span></div>{network === net.id && <CheckCircle2 className="w-3 h-3 text-indigo-400" />}</button>))}</div></div>
                   <div className="h-px bg-white/5"></div>
                   <div className="grid grid-cols-4 gap-2"><button onClick={runBenchmark} disabled={isRunning} className={`col-span-3 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${isRunning ? 'bg-slate-800 text-slate-500' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'}`}>{isRunning ? <RotateCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}{isRunning ? 'Running...' : 'Start'}</button><Tooltip content={<div className="p-2 text-xs">Download CSV Report</div>}><button onClick={handleExport} className="flex items-center justify-center rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"><Download className="w-4 h-4" /></button></Tooltip></div>
-                  <div className="bg-black/50 rounded-lg p-3 font-mono text-[10px] text-slate-400 h-32 flex flex-col border border-slate-800 shadow-inner"><div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800"><div className="flex items-center gap-2 text-indigo-400"><Terminal className="w-3 h-3" /> Logs</div><button onClick={() => setLogExpanded(true)} className="hover:text-white transition-colors"><Maximize2 className="w-3 h-3" /></button></div><div className="overflow-y-auto flex-1 space-y-1">{logs.length === 0 && <span className="opacity-50">Ready...</span>}{logs.map((log, i) => <div key={i}>{log}</div>)}</div></div>
               </GlassCard>
            </div>
 
            <div className="lg:col-span-9 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* WINNER CARD */}
                   <div className="relative rounded-2xl border border-white/10 p-5 md:col-span-2 flex items-center justify-between overflow-visible bg-gradient-to-br from-slate-900 to-slate-950">
                      <div className="relative z-10 flex-1">
                         <p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-2">Top Performer ({USE_CASE_PRESETS[useCase].label})</p>
@@ -310,6 +221,7 @@ export default function App() {
                   <GlassCard className="p-5 flex flex-col justify-center"><p className="text-slate-400 text-xs uppercase tracking-wider font-bold mb-1">Est. Cost</p><div className="text-2xl font-bold text-white">${(winner.calculatedCost || 0).toLocaleString()}</div><p className="text-[10px] text-slate-500 mt-1">Based on {requestVolume}M requests</p></GlassCard>
               </div>
 
+              {/* MAIN CHART */}
               <GlassCard className="flex-1 min-h-[400px]">
                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <div className="flex gap-2 flex-wrap">
@@ -334,13 +246,13 @@ export default function App() {
            </div>
         </div>
 
+        {/* MAIN DATA TABLE */}
         <div className="mt-8">
             <GlassCard className="p-0 overflow-visible">
                 <div className="overflow-visible">
                     <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-black/20 text-xs uppercase text-slate-500 font-semibold tracking-wider">
-                        {/* FIXED: Headers now have Tooltips for definition context */}
                         <th className="px-6 py-4 cursor-pointer hover:text-white" onClick={() => handleSort('name')}>
                             <Tooltip content="Service Provider Name"><div className="flex items-center gap-1">Provider <ArrowUpDown className="w-3 h-3" /></div></Tooltip>
                         </th>
@@ -381,6 +293,7 @@ export default function App() {
                               </Tooltip>
                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: provider.color, boxShadow: `0 0 10px ${provider.color}` }}></div>{provider.name}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.latency > 0 ? <span className={provider.latency < 100 ? 'text-emerald-400' : 'text-slate-200'}>{provider.latency} ms</span> : <span className="text-slate-600">-</span>}</td><td className="px-6 py-4"><Sparkline data={provider.history || []} color={provider.color} /></td><td className="px-6 py-4 text-slate-300 font-mono">{provider.batchLatency > 0 ? provider.batchLatency : '-'}</td><td className="px-6 py-4 text-slate-300 font-mono">{provider.gas > 0 ? provider.gas.toFixed(2) : '-'}</td><td className="px-6 py-4 text-slate-400 text-xs">{provider.coverage} Nets</td><td className="px-6 py-4"><div className="flex gap-1.5">{provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Support</div>}><Database className="w-4 h-4 text-indigo-400" /></Tooltip>}{provider.trace && <Tooltip content={<div className="p-2 text-xs">Trace/Debug API Support</div>}><FileCode className="w-4 h-4 text-emerald-400" /></Tooltip>}{(provider.certs || []).length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {(provider.certs || []).join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-amber-400" /></Tooltip>}</div></td><td className="px-6 py-4"><Tooltip content={<div className="p-2 text-xs whitespace-nowrap">{(provider.securityIssues || []).length > 0 ? `${(provider.securityIssues || []).length} Issues Found` : "All Checks Passed"}</div>}>{provider.securityScore === 100 ? <ShieldCheck className="w-4 h-4 text-emerald-400" /> : <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse" />}</Tooltip></td><td className="px-6 py-4 text-right text-xs text-slate-400">{provider.freeTier}</td></tr>))}</tbody></table></div></GlassCard></div>
 
+        {/* AUDIT SECTION */}
         <div className="mt-8">
             <div className="flex items-center justify-between mb-4 px-2">
                 <div className="flex items-center gap-4"><div className="flex items-center gap-2"><Box className="w-4 h-4 text-slate-400" /><h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Execution Layer Audit</h3></div><div className="flex items-center bg-slate-900 border border-slate-700 rounded-lg p-1 gap-1">{['erc20', 'erc721', 'erc1155'].map(type => (<button key={type} onClick={() => setAuditStandard(type)} className={`px-2 py-1 text-[10px] uppercase font-bold rounded transition-all ${auditStandard === type ? 'bg-indigo-500 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{type}</button>))}</div></div>
@@ -388,11 +301,10 @@ export default function App() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {contractData.length > 0 ? contractData.map((res, idx) => {
-                    const isMismatch = consensusValue && res.result && res.result !== consensusValue;
                     return (
                         <GlassCard key={idx} className="p-4 flex items-center justify-between relative overflow-hidden">
-                            {isMismatch && <div className="absolute top-0 right-0 bg-red-500/20 px-2 py-0.5 text-[9px] text-red-300 font-bold border-bl rounded-bl">DATA MISMATCH</div>}
-                            <div><div className="text-xs text-slate-500 font-bold mb-1 flex items-center gap-2">{res.name}{res.success && !isMismatch && <Check className="w-3 h-3 text-emerald-500" />}{isMismatch && <AlertTriangle className="w-3 h-3 text-red-500" />}</div><div className="text-sm text-white font-mono">{res.success ? (<div><div className="text-[10px] text-slate-400">Time: {res.time}ms</div><div className={`mt-1 font-bold ${isMismatch ? 'text-red-300' : 'text-emerald-300'}`}>{formatBigNumber(res.result)}</div></div>) : <span className="text-red-400">Failed</span>}</div></div>
+                            {res.isMismatch && <div className="absolute top-0 right-0 bg-red-500/20 px-2 py-0.5 text-[9px] text-red-300 font-bold border-bl rounded-bl">CONSENSUS FAILURE</div>}
+                            <div><div className="text-xs text-slate-500 font-bold mb-1 flex items-center gap-2">{res.name}{res.success && !res.isMismatch && <Check className="w-3 h-3 text-emerald-500" />}{res.isMismatch && <AlertTriangle className="w-3 h-3 text-red-500" />}</div><div className="text-sm text-white font-mono">{res.success ? (<div><div className="text-[10px] text-slate-400">Time: {res.time}ms</div><div className={`mt-1 font-bold ${res.isMismatch ? 'text-red-300' : 'text-emerald-300'}`}>{formatBigNumber(res.result)}</div></div>) : <span className="text-red-400">Failed</span>}</div></div>
                             <div className="text-right"><div className="text-[10px] text-slate-500 uppercase tracking-wider">Target</div><div className="text-xs text-indigo-300 font-bold max-w-[150px] truncate">{res.target || 'N/A'}</div></div>
                         </GlassCard>
                     );
