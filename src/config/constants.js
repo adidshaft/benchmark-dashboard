@@ -1,12 +1,13 @@
 import { Zap, Activity, Gauge, DollarSign, Sparkles, Terminal } from 'lucide-react';
 
+// ... (Keep INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS, DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_METRICS as they are) ...
 export const INITIAL_DATA = [
-  { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0,0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0,0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'QuickNode', latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0,0], freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Covalent', latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0,0], freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Mobula', latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0,0], freeTier: 'Freemium', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-  { name: 'Codex', latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0,0], freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] }
+    { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0, 0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0, 0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'QuickNode', latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0, 0], freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Covalent', latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0, 0], freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Mobula', latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0, 0], freeTier: 'Freemium', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Codex', latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0, 0], freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] }
 ];
 
 export const SUPPORTED_CHAINS = [
@@ -28,20 +29,20 @@ export const USE_CASE_PRESETS = {
 };
 
 export const METRIC_DEFINITIONS = {
-  score: { title: "CovalScore™", calc: "Dynamic Weighted Average based on selected Use Case.", meaning: "Best fit for your specific needs.", icon: Activity },
-  speed: { title: "P50 Latency", calc: "Median response time.", meaning: "Lower is better.", icon: Zap },
-  p99: { title: "P99 Stress", calc: "Peak response time.", meaning: "Lower is better.", icon: Gauge },
-  cost: { title: "Est. Cost", calc: "Volume based projection.", meaning: "Lower is better.", icon: DollarSign },
-  reliability: { title: "Session Uptime", calc: "% of successful pings.", meaning: "Higher is better.", icon: Activity }
+    score: { title: "CovalScore™", calc: "Dynamic Weighted Average based on selected Use Case.", meaning: "Best fit for your specific needs.", icon: Activity },
+    speed: { title: "P50 Latency", calc: "Median response time.", meaning: "Lower is better.", icon: Zap },
+    p99: { title: "P99 Stress", calc: "Peak response time.", meaning: "Lower is better.", icon: Gauge },
+    cost: { title: "Est. Cost", calc: "Volume based projection.", meaning: "Lower is better.", icon: DollarSign },
+    reliability: { title: "Session Uptime", calc: "% of successful pings.", meaning: "Higher is better.", icon: Activity }
 };
 
 export const DEFINITIONS_DATA = [
-  { param: "Batch Throughput", unit: "ms/10 reqs", source: "Time to process a batch of 10 RPC calls.", relevance: "Simulates high-load dashboard performance." },
-  { param: "P50 Latency", unit: "ms", source: "Median ping from client.", relevance: "General responsiveness." },
-  { param: "Security Score", unit: "0-100", source: "HTTPS & Header Leak analysis.", relevance: "Infrastructure hardening level." },
-  { param: "Archive Access", unit: "Boolean", source: "Live fetch of Genesis Block (#1).", relevance: "Verifies deep history access." },
-  { param: "Execution Audit", unit: "State Check", source: "Verifies eth_call on ERC20/721/1155.", relevance: "Ensures provider can read actual smart contract state." },
-  { param: "P99 Latency (Stress)", unit: "ms", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
+    { param: "Batch Throughput", unit: "ms/10 reqs", source: "Time to process a batch of 10 RPC calls.", relevance: "Simulates high-load dashboard performance." },
+    { param: "P50 Latency", unit: "ms", source: "Median ping from client.", relevance: "General responsiveness." },
+    { param: "Security Score", unit: "0-100", source: "HTTPS & Header Leak analysis.", relevance: "Infrastructure hardening level." },
+    { param: "Archive Access", unit: "Boolean", source: "Live fetch of Genesis Block (#1).", relevance: "Verifies deep history access." },
+    { param: "Execution Audit", unit: "State Check", source: "Verifies eth_call on ERC20/721/1155.", relevance: "Ensures provider can read actual smart contract state." },
+    { param: "P99 Latency (Stress)", unit: "ms", source: "Response time during 10k RPS burst load.", relevance: "Vital for high-traffic dApps; indicates choking points." },
 ];
 
 export const TRANSPARENCY_DATA = [
@@ -71,12 +72,16 @@ export const BUILDER_METRICS = {
 export const BUILDER_IMPACT_DOCS = {
     title: "The Builder's Impact Framework",
     subtitle: "Benchmarking the 'Total Developer Experience' rather than just node latency.",
-    // Section 1: The Philosophy
     ideology: {
         title: "The Ideology",
         content: "Traditional benchmarks measure how fast a single `eth_blockNumber` returns. This is irrelevant for modern dApps. We believe performance should be measured by the **Total Efficiency** of building a feature. If a provider is fast but forces you to make 50 requests to display one page, the User Experience suffers."
     },
-    // Section 2: The Specifics (What are we actually doing?)
+    // NEW: Detailed Scenarios
+    scenarios: {
+        title: "Test Scenarios",
+        portfolio: "Simulates a user connecting their wallet to a portfolio tracker. It fetches: 1) Full list of ERC20 balances, 2) USD Prices for each, 3) Logos/Metadata. A 'Perfect' provider does this in 1 call.",
+        swap: "Simulates a DEX frontend preparing a trade. 1) Fetches Pool Reserves (Liquidity), 2) Calculates Price Impact (Client CPU), 3) Estimates Gas for the transaction."
+    },
     specs: {
         title: "Simulation Specifications",
         target: "Wallet Portfolio (Balances + Prices + Metadata)",
@@ -87,13 +92,20 @@ export const BUILDER_IMPACT_DOCS = {
             "3. Fetch Real-time USD Spot Prices"
         ]
     },
-    // Section 3: The Parameters
+    // NEW: Detailed Assumptions & Variations
+    assumptions: [
+        { label: "Covalent", detail: "Uses 'GoldRush' Unified API. Returns Balances + Price + Metadata in 1 call. 95% data richness." },
+        { label: "Mobula", detail: "Uses '/wallet/portfolio' endpoint. Similar to Covalent but specialized for DeFi prices. 90% richness." },
+        { label: "Codex", detail: "Uses GraphQL. Allows precise data fetching (No over-fetching). Requires schema knowledge. 85% richness." },
+        { label: "Alchemy", detail: "Uses Enhanced APIs ('getAssetTransfers' + 'getNFTs'). Requires 2 calls. Metadata is often partial." },
+        { label: "Infura/QuickNode", detail: "Standard RPC. Requires 'Waterfall' approach: 1 call for list, then Loop N calls for metadata. High R.A.F. (Request Amplification)." }
+    ],
     metrics: [
         {
             title: "Request Amplification Factor",
             subtitle: "Metric 1: Efficiency",
             desc: "The ratio of HTTP requests needed to complete the task vs. the logical task count (1). A Unified API has an RAF of 1. A standard RPC often has an RAF of 10+ (Waterfall Effect).",
-            color: "purple" 
+            color: "purple"
         },
         {
             title: "Data Richness Score",
