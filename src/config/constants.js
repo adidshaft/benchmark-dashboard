@@ -121,3 +121,20 @@ export const BUILDER_IMPACT_DOCS = {
         }
     ]
 };
+
+export const COVAL_SCORE_DOCS = {
+    title: "Algorithmic Transparency: The CovalScore™",
+    subtitle: "We do not use a generic average. The score is dynamically calculated based on your selected 'Builder Profile'.",
+    formula: "Score = (S_Lat × W_L) + (S_Batch × W_B) + (S_Rel × W_R) + (S_Cost × W_C) + (S_Int × W_I)",
+    legend: [
+        { label: "S_Lat", desc: "Latency Score (Normalized)" },
+        { label: "W_L", desc: "Weight (Variable)" }
+    ],
+    matrix: [
+        { profile: "General Purpose", weights: { L: "30%", B: "10%", R: "30%", C: "20%", I: "10%" }, focus: "Balanced Mix" },
+        { profile: "DEX / Trading", weights: { L: "50%", B: "0%", R: "40%", C: "0%", I: "10%" }, focus: "Speed Is King" },
+        { profile: "Wallet / Portfolio", weights: { L: "10%", B: "50%", R: "20%", C: "10%", I: "10%" }, focus: "Throughput Is King" },
+        { profile: "Indexer / Data", weights: { L: "10%", B: "10%", R: "30%", C: "10%", I: "40%" }, focus: "Accuracy Is King" },
+        { profile: "NFT Mint", weights: { L: "20%", B: "0%", R: "70%", C: "0%", I: "10%" }, focus: "Uptime Is King" }
+    ]
+};

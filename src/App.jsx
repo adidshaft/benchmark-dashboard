@@ -21,7 +21,8 @@ import MetricExplanation from './components/MetricExplanation';
 import Tooltip from './components/Tooltip';
 import {
     INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS,
-    DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_IMPACT_DOCS
+    DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_IMPACT_DOCS,
+    COVAL_SCORE_DOCS // <-- NEW IMPORT
 } from './config/constants';
 
 const GlassCard = ({ children, className = "" }) => (
@@ -158,6 +159,49 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
                                     <p className="text-xs text-slate-400 leading-relaxed">{m.desc}</p>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-6">
+                        <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-indigo-400" />
+                            {COVAL_SCORE_DOCS.title}
+                        </h3>
+                        <p className="text-sm text-slate-400 mb-6 border-l-2 border-indigo-500 pl-4">
+                            {COVAL_SCORE_DOCS.subtitle}
+                        </p>
+
+                        {/* Formula Display */}
+                        <div className="bg-[#020617] p-4 rounded-lg border border-slate-800 mb-6 font-mono text-xs md:text-sm text-center text-indigo-300 shadow-inner">
+                            {COVAL_SCORE_DOCS.formula}
+                        </div>
+
+                        {/* Weighting Matrix Table */}
+                        <div className="overflow-hidden rounded-lg border border-slate-800">
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider font-semibold">
+                                    <tr>
+                                        <th className="px-4 py-3">Builder Profile</th>
+                                        <th className="px-4 py-3 text-center text-indigo-400">Latency</th>
+                                        <th className="px-4 py-3 text-center text-purple-400">Batch</th>
+                                        <th className="px-4 py-3 text-center text-emerald-400">Reliability</th>
+                                        <th className="px-4 py-3 text-center text-amber-400">Integrity</th>
+                                        <th className="px-4 py-3 text-right">Strategic Focus</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800 bg-slate-950">
+                                    {COVAL_SCORE_DOCS.matrix.map((row, i) => (
+                                        <tr key={i} className="hover:bg-white/5 transition-colors">
+                                            <td className="px-4 py-3 font-bold text-white">{row.profile}</td>
+                                            <td className="px-4 py-3 text-center font-mono text-slate-400">{row.weights.L}</td>
+                                            <td className="px-4 py-3 text-center font-mono text-slate-400">{row.weights.B}</td>
+                                            <td className="px-4 py-3 text-center font-mono text-slate-400">{row.weights.R}</td>
+                                            <td className="px-4 py-3 text-center font-mono text-slate-400">{row.weights.I}</td>
+                                            <td className="px-4 py-3 text-right text-slate-300 italic">{row.focus}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -590,8 +634,8 @@ export default function App() {
                                             <div className="flex justify-between items-center mb-3">
                                                 <span className="font-bold text-slate-200">{res.provider}</span>
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${res.metrics.builder_impact_rating === 'S' || res.metrics.builder_impact_rating === 'A+' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                                        res.metrics.builder_impact_rating === 'F' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                                    res.metrics.builder_impact_rating === 'F' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                                        'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
                                                     }`}>Grade: {res.metrics.builder_impact_rating}</span>
                                             </div>
                                             <div className="space-y-2 font-mono text-xs text-slate-400">
