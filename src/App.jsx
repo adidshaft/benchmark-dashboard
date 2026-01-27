@@ -22,8 +22,9 @@ import Tooltip from './components/Tooltip';
 import {
     INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS,
     DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_IMPACT_DOCS,
-    COVAL_SCORE_DOCS // <-- NEW IMPORT
+    COVAL_SCORE_DOCS
 } from './config/constants';
+import LaTeX from './components/LaTeX';
 
 const GlassCard = ({ children, className = "" }) => (
     <div className={`backdrop-blur-md bg-[#0f172a]/40 border border-white/5 rounded-2xl p-6 shadow-xl ${className}`}>
@@ -173,7 +174,7 @@ const DefinitionsModal = ({ isOpen, onClose }) => {
 
                         {/* Formula Display */}
                         <div className="bg-[#020617] p-4 rounded-lg border border-slate-800 mb-6 font-mono text-xs md:text-sm text-center text-indigo-300 shadow-inner">
-                            {COVAL_SCORE_DOCS.formula}
+                            <LaTeX block={true}>{COVAL_SCORE_DOCS.formula}</LaTeX>
                         </div>
 
                         {/* Weighting Matrix Table */}

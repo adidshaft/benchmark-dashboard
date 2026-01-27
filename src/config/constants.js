@@ -125,7 +125,7 @@ export const BUILDER_IMPACT_DOCS = {
 export const COVAL_SCORE_DOCS = {
     title: "Algorithmic Transparency: The CovalScore™",
     subtitle: "We do not use a generic average. The score is dynamically calculated based on your selected 'Builder Profile'.",
-    formula: "Score = (S_Lat × W_L) + (S_Batch × W_B) + (S_Rel × W_R) + (S_Cost × W_C) + (S_Int × W_I)",
+    formula: "Score = (S_{Lat} \\times W_L) + (S_{Batch} \\times W_B) + (S_{Rel} \\times W_R) + (S_{Cost} \\times W_C) + (S_{Int} \\times W_I)",
     legend: [
         { label: "S_Lat", desc: "Latency Score (Normalized)" },
         { label: "W_L", desc: "Weight (Variable)" }
