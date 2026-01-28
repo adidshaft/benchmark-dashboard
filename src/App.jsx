@@ -19,7 +19,7 @@ import { useBenchmark, NETWORK_CONFIG } from './hooks/useBenchmark';
 import { useSmartBenchmark } from './hooks/useSmartBenchmark';
 import { useStatusPage } from './hooks/useStatusPage';
 import { usePortfolioBenchmark } from './hooks/usePortfolioBenchmark';
-import GeminiAnalyzer from './components/GeminiAnalyzer';
+import OpenAIAnalyzer from './components/OpenAIAnalyzer';
 import LatencyHeatmap from './components/LatencyHeatmap'; // NEW
 
 import MetricExplanation from './components/MetricExplanation';
@@ -651,7 +651,7 @@ export default function App() {
 
             </main>
 
-            <GeminiAnalyzer benchmarkData={sortedAndFilteredData} portfolioData={portfolioResults} />
+            <OpenAIAnalyzer benchmarkData={sortedAndFilteredData} portfolioData={portfolioResults} />
         </div>
     );
 }
