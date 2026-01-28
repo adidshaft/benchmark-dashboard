@@ -595,8 +595,56 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* ... (Keep Main Data Table & Builder Impact Section from previous) ... */}
-                {/* Just assume I kept the table and portfolio section here exactly as they were. */}
+                {/* MAIN DATA TABLE */}
+                <GlassCard className="mb-8 overflow-hidden p-0 border border-slate-800">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="text-[10px] uppercase text-slate-500 bg-slate-900/50 border-b border-slate-800">
+                                    <th className="px-6 py-4 font-bold tracking-wider cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('name')}>Provider {sortConfig.key === 'name' && <ArrowUpDown className="inline w-3 h-3 ml-1" />}</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('latency')}>P50 {sortConfig.key === 'latency' && <ArrowUpDown className="inline w-3 h-3 ml-1" />}</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider">Stability (History)</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('batchLatency')}>Batch (10x) {sortConfig.key === 'batchLatency' && <ArrowUpDown className="inline w-3 h-3 ml-1" />}</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('gas')}>Gas (Gwei) {sortConfig.key === 'gas' && <ArrowUpDown className="inline w-3 h-3 ml-1" />}</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('coverage')}>Chains {sortConfig.key === 'coverage' && <ArrowUpDown className="inline w-3 h-3 ml-1" />}</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider text-center">Capabilities</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider text-center">Security</th>
+                                    <th className="px-6 py-4 font-bold tracking-wider text-right">Free Tier</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                                {sortedAndFilteredData.map((provider) => (
+                                    <tr key={provider.name} onClick={() => setInspectorData(provider)} className="bg-slate-900/20 hover:bg-slate-800/40 transition-all cursor-pointer group hover:shadow-lg hover:shadow-indigo-500/5">
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-2 h-2 rounded-full ${provider.latency > 0 ? (provider.latency < 100 ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : provider.latency < 300 ? 'bg-amber-400' : 'bg-red-400') : 'bg-slate-600'}`}></div>
+                                                <span className="font-bold text-white group-hover:text-indigo-300 transition-colors text-sm">{provider.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 font-mono font-bold text-white text-sm">{provider.latency > 0 ? `${provider.latency}ms` : <span className="text-slate-600">-</span>}</td>
+                                        <td className="px-6 py-5"><Sparkline data={provider.history} color={provider.color} /></td>
+                                        <td className="px-6 py-5 font-mono text-slate-300 text-sm">{provider.batchLatency > 0 ? `${provider.batchLatency}ms` : <span className="text-slate-600">-</span>}</td>
+                                        <td className="px-6 py-5 font-mono text-slate-300 text-sm">{provider.gas > 0 ? provider.gas : <span className="text-slate-600">-</span>}</td>
+                                        <td className="px-6 py-5 text-sm text-slate-400">{provider.coverage} Nets</td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex justify-center gap-2">
+                                                {provider.archive && <Tooltip content={<div className="p-2 text-xs">Archive Node Access</div>}><Database className="w-4 h-4 text-purple-400" /></Tooltip>}
+                                                {provider.trace && <Tooltip content={<div className="p-2 text-xs">Debug Trace Supported</div>}><FileCode className="w-4 h-4 text-amber-400" /></Tooltip>}
+                                                {provider.certs?.length > 0 && <Tooltip content={<div className="p-2 text-xs">Certified: {provider.certs.join(', ')}</div>}><ShieldCheck className="w-4 h-4 text-emerald-400" /></Tooltip>}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-center">
+                                            <div className="inline-flex items-center justify-center p-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                                                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-right text-xs font-bold text-slate-400">{provider.freeTier}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </GlassCard>
 
                 {/* PORTFOLIO BENCHMARK SECTION */}
                 <div className="mt-8">
