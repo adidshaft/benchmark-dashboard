@@ -281,7 +281,12 @@ const PortfolioInspectorModal = ({ isOpen, onClose, data }) => {
                     {/* Traceroute Visualization */}
                     {traceroute && traceroute.length > 0 && (
                         <div>
-                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2"><Timer className="w-3 h-3" /> Request Traceroute</h4>
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <Timer className="w-3 h-3" /> Request Traceroute
+                                <Tooltip content={<div className="p-2 text-xs">Visualizes the sequence of network calls.<br />Waterfall = Sequential (Slow)<br />Parallel = Unified (Fast)</div>}>
+                                    <Info className="w-3 h-3 cursor-pointer hover:text-white transition-colors" />
+                                </Tooltip>
+                            </h4>
                             <div className="bg-slate-950 rounded-lg border border-slate-800 p-1">
                                 {traceroute.map((trace, i) => (
                                     <div key={i} className="flex items-center gap-3 p-2 border-b border-slate-800/50 last:border-0 hover:bg-white/5 transition-colors">
@@ -438,7 +443,8 @@ export default function App() {
         // *Self-Correction*: The hook uses `new PortfolioBenchmark(...)`. I can't pass penalty easily without updating the hook file.
         // Let's just run it as is for now, and the latency simulation will happen on the *Next* iteration when we update the hook properly.
 
-        runPortfolioTest(targetWallet, network, scenario);
+        // Pass penalty to the hook
+        runPortfolioTest(targetWallet, network, scenario, { latencyPenalty: penalty });
     };
 
     return (

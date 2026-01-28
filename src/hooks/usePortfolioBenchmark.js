@@ -7,8 +7,8 @@ export const usePortfolioBenchmark = () => {
     const [progress, setProgress] = useState("");
     const [logs, setLogs] = useState([]);
 
-    // Added 'scenario' argument
-    const runPortfolioTest = useCallback(async (walletAddress, chainId, scenario = "Portfolio_Load") => {
+    // Added 'scenario' argument and 'options' for penalty
+    const runPortfolioTest = useCallback(async (walletAddress, chainId, scenario = "Portfolio_Load", options = {}) => {
         setIsRunning(true);
         setResults(null);
         setLogs([]);
@@ -19,6 +19,10 @@ export const usePortfolioBenchmark = () => {
                 const timestamp = new Date().toLocaleTimeString().split(' ')[0];
                 setLogs(prev => [...prev, `[${timestamp}] ${msg}`]);
             });
+
+            if (options.latencyPenalty) {
+                engine.setLatencyPenalty(options.latencyPenalty);
+            }
 
             setProgress("Executing Benchmark Scenarios...");
             // Pass scenario to run()

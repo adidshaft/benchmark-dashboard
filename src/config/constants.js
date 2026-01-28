@@ -1,6 +1,5 @@
 import { Zap, Activity, Gauge, DollarSign, Sparkles, Terminal } from 'lucide-react';
 
-// ... (Keep INITIAL_DATA, SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS, DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_METRICS as they are) ...
 export const INITIAL_DATA = [
     { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0, 0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
     { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0, 0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
@@ -10,6 +9,7 @@ export const INITIAL_DATA = [
     { name: 'Codex', latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0, 0], freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] }
 ];
 
+// ... (Keep SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS, DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_METRICS as they were) ...
 export const SUPPORTED_CHAINS = [
     { id: 'ethereum', label: 'Ethereum', color: 'bg-indigo-500' },
     { id: 'polygon', label: 'Polygon', color: 'bg-purple-500' },
@@ -76,7 +76,6 @@ export const BUILDER_IMPACT_DOCS = {
         title: "The Ideology",
         content: "Traditional benchmarks measure how fast a single `eth_blockNumber` returns. This is irrelevant for modern dApps. We believe performance should be measured by the **Total Efficiency** of building a feature. If a provider is fast but forces you to make 50 requests to display one page, the User Experience suffers."
     },
-    // NEW: Detailed Scenarios
     scenarios: {
         title: "Test Scenarios",
         portfolio: "Simulates a user connecting their wallet to a portfolio tracker. It fetches: 1) Full list of ERC20 balances, 2) USD Prices for each, 3) Logos/Metadata. A 'Perfect' provider does this in 1 call.",
@@ -92,7 +91,6 @@ export const BUILDER_IMPACT_DOCS = {
             "3. Fetch Real-time USD Spot Prices"
         ]
     },
-    // NEW: Detailed Assumptions & Variations
     assumptions: [
         { label: "Covalent", detail: "Uses 'GoldRush' Unified API. Returns Balances + Price + Metadata in 1 call. 95% data richness." },
         { label: "Mobula", detail: "Uses '/wallet/portfolio' endpoint. Similar to Covalent but specialized for DeFi prices. 90% richness." },
@@ -122,13 +120,16 @@ export const BUILDER_IMPACT_DOCS = {
     ]
 };
 
+// UPDATED: Docs reflecting Sigmoid Normalization
 export const COVAL_SCORE_DOCS = {
     title: "Algorithmic Transparency: The CovalScore™",
-    subtitle: "We do not use a generic average. The score is dynamically calculated based on your selected 'Builder Profile'.",
-    formula: "Score = (S_{Lat} \\times W_L) + (S_{Batch} \\times W_B) + (S_{Rel} \\times W_R) + (S_{Cost} \\times W_C) + (S_{Int} \\times W_I)",
+    subtitle: "We use Sigmoid Normalization to ensure statistical validity across varying network conditions.",
+    // Updated Formula for Sigmoid
+    formula: "Score = \\sum \\left( \\frac{100}{1 + e^{-k(x - \\mu)}} \\times W_i \\right)",
     legend: [
-        { label: "S_Lat", desc: "Latency Score (Normalized)" },
-        { label: "W_L", desc: "Weight (Variable)" }
+        { label: "x", desc: "Raw Metric (e.g., Latency)" },
+        { label: "\\mu", desc: "Industry Mean (Baseline)" },
+        { label: "k", desc: "Slope (Sensitivity Factor)" }
     ],
     matrix: [
         { profile: "General Purpose", weights: { L: "30%", B: "10%", R: "30%", C: "20%", I: "10%" }, focus: "Balanced Mix" },

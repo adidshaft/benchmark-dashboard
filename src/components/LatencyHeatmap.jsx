@@ -10,7 +10,7 @@ const generateHeatmapData = (providers) => {
         color: p.color,
         methods: methods.map(m => {
             // Simulate realistic variations
-            const base = p.latency > 0 ? p.latency : 100;
+            const base = (typeof p.latency === 'number' && p.latency > 0) ? p.latency : 100;
             const multiplier = m === "trace_call" ? 3 : m === "eth_getLogs" ? 1.5 : 1;
             const val = Math.round(base * multiplier * (0.8 + Math.random() * 0.4));
             return { name: m, value: val };
@@ -35,7 +35,10 @@ const LatencyHeatmap = ({ data }) => {
                     <div className="w-24"></div>
                     {heatmapData[0].methods.map(m => (
                         <div key={m.name} className="flex-1 text-center text-[10px] uppercase font-bold text-slate-500">
-                            {m.name.replace('eth_', '').replace('_', ' ')}
+                            <div className="flex items-center justify-center gap-1">
+                                {m.name.replace('eth_', '').replace('_', ' ')}
+                                <div data-tooltip-id="heatmap-tooltip" data-tooltip-content={m.name === "eth_call" ? "Smart Contract Read" : m.name === "eth_getLogs" ? "Event Fetch" : m.name === "trace_call" ? "Debug Trace" : "Native Balance"} className="cursor-help opacity-50 hover:opacity-100">ⓘ</div>
+                            </div>
                         </div>
                     ))}
                 </div>
