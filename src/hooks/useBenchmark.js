@@ -15,38 +15,42 @@ export const NETWORK_CONFIG = {
 };
 
 const performRequest = async (config, payload, method = 'POST') => {
-    try {
-        const isRPC = config.type === 'RPC';
-        const headers = config.authHeader ? { 'Authorization': import.meta.env.VITE_MOBULA_KEY } : {};
-        if (isRPC) headers['Content-Type'] = 'application/json';
+  try {
+    const isRPC = config.type === 'RPC';
+    const headers = config.authHeader ? { 'Authorization': import.meta.env.VITE_MOBULA_KEY } : {};
+    if (isRPC) headers['Content-Type'] = 'application/json';
 
-        const options = { method, headers };
-        if (isRPC && method === 'POST') options.body = JSON.stringify(payload);
+    const options = {
+      method,
+      headers,
+      signal: AbortSignal.timeout(5000) // 5s Timeout
+    };
+    if (isRPC && method === 'POST') options.body = JSON.stringify(payload);
 
-        const response = await fetch(config.url, options);
-        return { 
-            ok: response.ok, 
-            status: response.status, 
-            headers: response.headers,
-            json: await response.json().catch(() => ({})) 
-        };
-    } catch (e) {
-        return { error: 'Network/Timeout' };
-    }
+    const response = await fetch(config.url, options);
+    return {
+      ok: response.ok,
+      status: response.status,
+      headers: response.headers,
+      json: await response.json().catch(() => ({}))
+    };
+  } catch (e) {
+    return { error: 'Network/Timeout' };
+  }
 };
 
 const checkSecurity = (config, headers) => {
-    let score = 100;
-    let issues = [];
-    if (!config || !config.url) return { score: 0, issues: ['Config Missing'] };
+  let score = 100;
+  let issues = [];
+  if (!config || !config.url) return { score: 0, issues: ['Config Missing'] };
 
-    if (!config.url.startsWith('https')) { score -= 50; issues.push("Insecure HTTP detected"); }
-    
-    if (headers) {
-        if (headers.get('x-powered-by')) { score -= 10; issues.push(`Leaked 'X-Powered-By'`); }
-        if (headers.get('server')) { score -= 10; issues.push(`Leaked 'Server' header`); }
-    }
-    return { score, issues };
+  if (!config.url.startsWith('https')) { score -= 50; issues.push("Insecure HTTP detected"); }
+
+  if (headers) {
+    if (headers.get('x-powered-by')) { score -= 10; issues.push(`Leaked 'X-Powered-By'`); }
+    if (headers.get('server')) { score -= 10; issues.push(`Leaked 'Server' header`); }
+  }
+  return { score, issues };
 };
 
 export const useBenchmark = (initialData, activeNetwork, precisionMode, requestType) => {
@@ -55,22 +59,22 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
     const savedHistory = localStorage.getItem(`benchmark_history_${activeNetwork}`);
     const parsedHistory = savedHistory ? JSON.parse(savedHistory) : {};
 
-    return initialData.map(d => ({ 
-      ...d, 
+    return initialData.map(d => ({
+      ...d,
       // Load saved history or start empty
-      history: parsedHistory[d.name] || [], 
-      securityIssues: d.securityIssues || [] 
+      history: parsedHistory[d.name] || [],
+      securityIssues: d.securityIssues || []
     }));
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const [logs, setLogs] = useState([]); 
+  const [logs, setLogs] = useState([]);
 
   // 2. Persist History whenever benchmarkData updates
   useEffect(() => {
     const historyMap = {};
     benchmarkData.forEach(p => {
-        if (p.history.length > 0) historyMap[p.name] = p.history;
+      if (p.history.length > 0) historyMap[p.name] = p.history;
     });
     localStorage.setItem(`benchmark_history_${activeNetwork}`, JSON.stringify(historyMap));
   }, [benchmarkData, activeNetwork]);
@@ -79,20 +83,20 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
 
   const runBenchmark = useCallback(async () => {
     setIsRunning(true);
-    setLogs([]); 
+    setLogs([]);
     addLog(`Initializing Intelligence Suite for ${activeNetwork}...`);
-    
+
     const iterations = precisionMode === 'robust' ? 5 : 2;
     // Note: ensure you import NETWORK_CONFIG or define it in this file
     const networkConfig = NETWORK_CONFIG[activeNetwork] || NETWORK_CONFIG.ethereum;
-    
+
     let currentData = [...benchmarkData];
 
     const updates = await Promise.all(currentData.map(async (provider) => {
       const config = networkConfig[provider.name];
 
       if (!config || !config.url) {
-          return { ...provider, latency: 0, batchLatency: 0, p99: 0, uptime: 0, lag: 'N/A', blockHeight: 0, archive: false, gas: 0, securityScore: 0, securityIssues: [], lastResponse: null };
+        return { ...provider, latency: 0, batchLatency: 0, p99: 0, uptime: 0, lag: 'N/A', blockHeight: 0, archive: false, gas: 0, securityScore: 0, securityIssues: [], lastResponse: null };
       }
 
       addLog(`Auditing ${provider.name}...`);
@@ -107,33 +111,33 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
       let lastRawResponse = null;
 
       for (let i = 0; i < iterations; i++) {
-        const payload = requestType === 'heavy' 
-            ? { jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["latest", true] }
-            : { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] };
-        
+        const payload = requestType === 'heavy'
+          ? { jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["latest", true] }
+          : { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] };
+
         const start = performance.now();
         const res = await performRequest(config, payload, config.type === 'RPC' ? 'POST' : 'GET');
         const end = performance.now();
 
         if (res.ok && !res.error) {
-            latencies.push(Math.round(end - start));
-            if (res.json.result) {
-                const val = typeof res.json.result === 'object' ? res.json.result.number : res.json.result;
-                lastBlockHeight = parseInt(val, 16) || lastBlockHeight;
-            }
-            lastHeaders = res.headers;
-            lastRawResponse = res.json;
-            successCount++;
+          latencies.push(Math.round(end - start));
+          if (res.json.result) {
+            const val = typeof res.json.result === 'object' ? res.json.result.number : res.json.result;
+            lastBlockHeight = parseInt(val, 16) || lastBlockHeight;
+          }
+          lastHeaders = res.headers;
+          lastRawResponse = res.json;
+          successCount++;
         } else {
-            latencies.push(0);
+          latencies.push(0);
         }
 
         if (config.type === 'RPC' && requestType === 'light') {
-            const batchPayload = Array(10).fill(null).map((_, idx) => ({ jsonrpc: "2.0", id: idx, method: "eth_blockNumber", params: [] }));
-            const bStart = performance.now();
-            const bRes = await performRequest(config, batchPayload, 'POST');
-            const bEnd = performance.now();
-            if (bRes.ok) batchLatencies.push(Math.round(bEnd - bStart));
+          const batchPayload = Array(10).fill(null).map((_, idx) => ({ jsonrpc: "2.0", id: idx, method: "eth_blockNumber", params: [] }));
+          const bStart = performance.now();
+          const bRes = await performRequest(config, batchPayload, 'POST');
+          const bEnd = performance.now();
+          if (bRes.ok) batchLatencies.push(Math.round(bEnd - bStart));
         }
 
         await new Promise(r => setTimeout(r, 100));
@@ -141,31 +145,31 @@ export const useBenchmark = (initialData, activeNetwork, precisionMode, requestT
 
       let secScore = 100, secIssues = [];
       if (config.type === 'RPC') {
-          const archivePayload = { jsonrpc: "2.0", id: 2, method: "eth_getBalance", params: ["0x0000000000000000000000000000000000000000", "0x1"] };
-          const archiveRes = await performRequest(config, archivePayload);
-          if (archiveRes.json?.result) detectedArchive = true;
+        const archivePayload = { jsonrpc: "2.0", id: 2, method: "eth_getBalance", params: ["0x0000000000000000000000000000000000000000", "0x1"] };
+        const archiveRes = await performRequest(config, archivePayload);
+        if (archiveRes.json?.result) detectedArchive = true;
 
-          const gasPayload = { jsonrpc: "2.0", id: 3, method: "eth_gasPrice", params: [] };
-          const gasRes = await performRequest(config, gasPayload);
-          if (gasRes.json?.result) lastGas = parseInt(gasRes.json.result, 16) / 1e9;
+        const gasPayload = { jsonrpc: "2.0", id: 3, method: "eth_gasPrice", params: [] };
+        const gasRes = await performRequest(config, gasPayload);
+        if (gasRes.json?.result) lastGas = parseInt(gasRes.json.result, 16) / 1e9;
 
-          const sec = checkSecurity(config, lastHeaders);
-          secScore = sec.score;
-          secIssues = sec.issues || [];
+        const sec = checkSecurity(config, lastHeaders);
+        secScore = sec.score;
+        secIssues = sec.issues || [];
       }
 
-      const validLatencies = latencies.filter(l => l > 0).sort((a,b)=>a-b);
+      const validLatencies = latencies.filter(l => l > 0).sort((a, b) => a - b);
       const p50 = validLatencies.length > 0 ? validLatencies[Math.floor(validLatencies.length / 2)] : 0;
       const p99 = validLatencies.length > 0 ? validLatencies[validLatencies.length - 1] : 0;
-      const batchAvg = batchLatencies.length ? Math.round(batchLatencies.reduce((a,b)=>a+b,0)/batchLatencies.length) : 0;
-      
-      return { 
-        ...provider, 
-        latency: p50, 
+      const batchAvg = batchLatencies.length ? Math.round(batchLatencies.reduce((a, b) => a + b, 0) / batchLatencies.length) : 0;
+
+      return {
+        ...provider,
+        latency: p50,
         batchLatency: batchAvg,
-        p99, 
-        uptime: Math.round((successCount / iterations) * 100), 
-        blockHeight: lastBlockHeight, 
+        p99,
+        uptime: Math.round((successCount / iterations) * 100),
+        blockHeight: lastBlockHeight,
         lag: p50 === 0 ? 'Error' : 0,
         // Append new latency to existing history
         history: [...(provider.history || []), ...latencies].slice(-20),
