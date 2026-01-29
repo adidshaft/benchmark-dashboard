@@ -22,4 +22,8 @@ const LaTeX = ({ children, block = false }) => {
     return <span ref={containerRef} />;
 };
 
+// Named exports for convenience
+export const BlockMath = ({ math, children }) => <LaTeX block={true}>{math || children}</LaTeX>;
+export const InlineMath = ({ math, children }) => <LaTeX block={false}>{math || children}</LaTeX>;
+
 export default LaTeX;

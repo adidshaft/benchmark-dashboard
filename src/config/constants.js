@@ -1,15 +1,17 @@
 import { Zap, Activity, Gauge, DollarSign, Sparkles, Terminal } from 'lucide-react';
 
 export const INITIAL_DATA = [
-    { name: 'Alchemy', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0, 0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-    { name: 'Infura', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0, 0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-    { name: 'QuickNode', latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0, 0], freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-    { name: 'Covalent', latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0, 0], freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-    { name: 'Mobula', latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0, 0], freeTier: 'Freemium', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
-    { name: 'Codex', latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0, 0], freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] }
+    // NODES (The "Fast Pipes")
+    { name: 'Alchemy', type: 'node', latency: 0, p99: 0, uptime: 100, baseCost: 15, coverage: 8, color: '#3b82f6', history: [0, 0], freeTier: '300M CUs', archive: false, trace: true, certs: ['SOC2', 'GDPR'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Infura', type: 'node', latency: 0, p99: 0, uptime: 100, baseCost: 20, coverage: 12, color: '#ff5e57', history: [0, 0], freeTier: '100k/day', archive: false, trace: true, certs: ['SOC2', 'HIPAA'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'QuickNode', type: 'node', latency: 0, p99: 0, uptime: 100, baseCost: 25, coverage: 35, color: '#34e7e4', history: [0, 0], freeTier: '10M Credits', archive: false, trace: true, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+
+    // INDEXERS (The "Smart Warehouses")
+    { name: 'Covalent', type: 'indexer', latency: 0, p99: 0, uptime: 100, baseCost: 12, coverage: 225, color: '#f59e0b', history: [0, 0], freeTier: 'Premium Trial', archive: true, trace: false, certs: ['SOC2'], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Mobula', type: 'indexer', latency: 0, p99: 0, uptime: 100, baseCost: 10, coverage: 45, color: '#8b5cf6', history: [0, 0], freeTier: 'Freemium', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] },
+    { name: 'Codex', type: 'indexer', latency: 0, p99: 0, uptime: 100, baseCost: 5, coverage: 30, color: '#10b981', history: [0, 0], freeTier: 'Free', archive: false, trace: false, certs: [], gas: 0, batchLatency: 0, securityScore: 100, securityIssues: [] }
 ];
 
-// ... (Keep SUPPORTED_CHAINS, USE_CASE_PRESETS, METRIC_DEFINITIONS, DEFINITIONS_DATA, TRANSPARENCY_DATA, BUILDER_METRICS as they were) ...
 export const SUPPORTED_CHAINS = [
     { id: 'ethereum', label: 'Ethereum', color: 'bg-indigo-500' },
     { id: 'polygon', label: 'Polygon', color: 'bg-purple-500' },
@@ -76,6 +78,11 @@ export const BUILDER_IMPACT_DOCS = {
         title: "The Ideology",
         content: "Traditional benchmarks measure how fast a single `eth_blockNumber` returns. This is irrelevant for modern dApps. We believe performance should be measured by the **Total Efficiency** of building a feature. If a provider is fast but forces you to make 50 requests to display one page, the User Experience suffers."
     },
+    archetypes: {
+        title: "Provider Types",
+        node: "Raw RPC Node (e.g., Alchemy, Infura). Optimized for millisecond-level `eth_call` responses. Best for high-frequency trading and simple reads.",
+        indexer: "Data Indexer (e.g., Covalent, Mobula). Optimized for 'Rich Data' (Balances, History, Metadata). Slower on raw pings but replaces 100+ node calls with 1 API call."
+    },
     scenarios: {
         title: "Test Scenarios",
         portfolio: "Simulates a user connecting their wallet to a portfolio tracker. It fetches: 1) Full list of ERC20 balances, 2) USD Prices for each, 3) Logos/Metadata. A 'Perfect' provider does this in 1 call.",
@@ -120,12 +127,10 @@ export const BUILDER_IMPACT_DOCS = {
     ]
 };
 
-// UPDATED: Docs reflecting Sigmoid Normalization
 export const COVAL_SCORE_DOCS = {
     title: "Algorithmic Transparency: The CovalScore™",
-    subtitle: "We use Sigmoid Normalization to ensure statistical validity across varying network conditions.",
-    // Updated Formula for Sigmoid
-    formula: "Score = \\sum \\left( \\frac{100}{1 + e^{-k(x - \\mu)}} \\times W_i \\right)",
+    subtitle: "We use Z-Score Normalization to ensure statistical validity across varying network conditions.",
+    formula: "\\text{Score} = \\sum \\left( \\frac{100}{1 + e^{-k(x - \\mu)}} \\times W_i \\right)",
     legend: [
         { label: "x", desc: "Raw Metric (e.g., Latency)" },
         { label: "\\mu", desc: "Industry Mean (Baseline)" },
@@ -137,5 +142,34 @@ export const COVAL_SCORE_DOCS = {
         { profile: "Wallet / Portfolio", weights: { L: "10%", B: "50%", R: "20%", C: "10%", I: "10%" }, focus: "Throughput Is King" },
         { profile: "Indexer / Data", weights: { L: "10%", B: "10%", R: "30%", C: "10%", I: "40%" }, focus: "Accuracy Is King" },
         { profile: "NFT Mint", weights: { L: "20%", B: "0%", R: "70%", C: "0%", I: "10%" }, focus: "Uptime Is King" }
+    ]
+};
+
+// NEW: Detailed Technical Specifications for Docs
+export const METHODOLOGY_SPECS = {
+    title: "Deep Dive: Technical Specifications",
+    subtitle: "Full disclosure of hardcoded parameters, simulation logic, and scoring arithmetic.",
+    heatmap_logic: [
+        { label: "CALL", rpc: "eth_call", logic: "Base Latency x 1.0 (Simulated variation)" },
+        { label: "GETLOGS", rpc: "eth_getLogs", logic: "Base Latency x 1.5 (Simulated overhead)" },
+        { label: "TRACE", rpc: "trace_call", logic: "Base Latency x 3.0 (Simulated complexity)" },
+        { label: "BALANCE", rpc: "eth_getBalance", logic: "Base Latency x 1.0" }
+    ],
+    hardcoded_params: [
+        { context: "Scoring (Z-Score)", param: "Mean Latency (μ)", value: "300ms", desc: "Industry baseline for normalization" },
+        { context: "Scoring (Z-Score)", param: "Mean RAF (μ)", value: "3 reqs", desc: "Baseline for Request Amplification" },
+        { context: "Scoring (Sigmoid)", param: "Slope (k) - Latency", value: "0.01", desc: "Sensitivity curve for latency" },
+        { context: "Scoring (Sigmoid)", param: "Slope (k) - RAF", value: "1.0", desc: "Aggressive penalty for high RAF" },
+        { context: "Benchmark Engine", param: "Batch Size", value: "10 reqs", desc: "Number of concurrent calls in batch test" },
+        { context: "Benchmark Engine", param: "Timeout", value: "5000ms", desc: "Hard abort limit per request" },
+        { context: "Portfolio Scenario", param: "Uniswap Pool", value: "0x88e6... (USDC/ETH)", desc: "Target for Swap Quote simulation" },
+        { context: "Portfolio Scenario", param: "Infura Waterfall", value: "6 requests", desc: "Simulated loop count for non-unified APIs" }
+    ],
+    mock_calc: [
+        { step: "1. Measure", details: "Latency: 150ms, RAF: 1, Richness: 90%" },
+        { step: "2. Latency Score", math: "100 / (1 + e^(0.01 * (150 - 300)))", result: "81.7" },
+        { step: "3. RAF Score", math: "100 / (1 + e^(1.0 * (1 - 3)))", result: "88.0" },
+        { step: "4. Richness Score", math: "Linear (90%)", result: "90.0" },
+        { step: "5. Final Calc", math: "(81.7*0.3) + (88.0*0.4) + (90.0*0.3)", result: "86.7 (Grade A+)" }
     ]
 };
