@@ -88,11 +88,11 @@ The platform currently supports benchmarking across major EVM networks and top-t
     VITE_OPENAI_API_KEY=your_openai_key  # Required for AI Analysis
     ```
 
-4.  **Run Development Server:**
+4.  **Run Development Server (Vite):**
     ```bash
     npm run dev
     ```
-    Open your browser and navigate to `http://localhost:5173` to view the dashboard.
+    This starts the Vite server. Open your browser and navigate to `http://localhost:5173`.
 
 5.  **Build for Production (Optional):**
     To create an optimized build for deployment:
