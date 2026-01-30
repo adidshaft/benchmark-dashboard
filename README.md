@@ -55,6 +55,13 @@ The platform currently supports benchmarking across major EVM networks and top-t
 
 ## ⚙️ Installation & Setup
 
+### Prerequisites
+*   **Node.js:** v18.0.0 or higher
+*   **npm:** v9.0.0 or higher
+*   **Git:** Latest version
+
+### Steps
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/adidshaft/benchmark-dashboard.git
@@ -64,6 +71,8 @@ The platform currently supports benchmarking across major EVM networks and top-t
 2.  **Install dependencies:**
     ```bash
     npm install
+    # or
+    yarn install
     ```
 
 3.  **Configure Environment Variables:**
@@ -82,6 +91,14 @@ The platform currently supports benchmarking across major EVM networks and top-t
 4.  **Run Development Server:**
     ```bash
     npm run dev
+    ```
+    Open your browser and navigate to `http://localhost:5173` to view the dashboard.
+
+5.  **Build for Production (Optional):**
+    To create an optimized build for deployment:
+    ```bash
+    npm run build
+    npm run preview
     ```
 
 ## 🧪 Methodology
